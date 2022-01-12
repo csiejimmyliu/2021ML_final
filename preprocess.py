@@ -165,7 +165,9 @@ onehot_data[label_col] = onehot_data[label_col].map(label_cat)
 
 #%%
 # end of preprocessing
-clean_data = onehot_data
+clean_data = onehot_data[
+    [ col for col in onehot_data.columns if col != label_col ] + [label_col]
+]
 for col in clean_data.columns:
     nan_num = clean_data[col].isnull().sum()
     if nan_num > 0:
