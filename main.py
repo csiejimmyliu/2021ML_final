@@ -61,9 +61,79 @@ data = pd.merge(
 )
 data
 
-#%%
-# todo: some pre-process like yes/no replacement, outlier, nan, ...
+cat_cols = [
+    'Gender',
+    'Married',
+    'Offer',
+    'Phone Service',
+    'Multiple Lines',
+    'Internet Service',
+    'Internet Type',
+    'Online Security',
+    'Online Backup',
+    'Device Protection Plan',
+    'Premium Tech Support',
+    'Streaming TV',
+    'Streaming Movies',
+    'Streaming Music',
+    'Unlimited Data',
+    'Contract',
+    'Paperless Billing',
+    'Payment Method',
 
+]
+
+real_cols_fill_avg = [
+    'Age',
+    'Population',
+    'Satisfaction Score',
+    'Tenure in Months',
+    'Avg Monthly Long Distance Charges',
+    'Avg Monthly GB Download',
+    'Monthly Charge',
+    'Total Charges',
+    'Total Long Distance Charges',
+    'Total Revenue',
+]
+
+real_cols_fill_zero = [
+    'Number of Dependents',
+    'Number of Referrals',
+    'Total Refunds',
+    'Total Extra Data Charges',
+]
+
+label_col = 'Churn Category'
+
+
+#%%
+###################
+# Pre-processing 
+###################
+
+#%%
+# one hot
+onehot_data = pd.get_dummies(data=data, columns=cat_cols, dummy_na=True)
+
+#%%
+# fill real-valued nan
+for col in real_cols_fill_avg:
+    onehot_data[col].fillna(onehot_data[col].mean(), inplace=True)
+
+for col in real_cols_fill_zero:
+    onehot_data[col].fillna(0, inplace=True)
+
+# label to numeric category
+label_cat = dict({
+    'No Churn' : 0,
+    'Competitor' : 1,
+    'Dissatisfaction' : 2,
+    'Attitude' : 3,
+    'Price' : 4,
+    'Other' : 5,
+    np.nan : -1
+})
+onehot_data[label_col] = onehot_data[label_col].map(label_cat).value_counts()
 
 #%%
 # todo: feature selection
@@ -114,5 +184,3 @@ for col in train_data.columns:
 
 #%%
 train_data[["Customer ID", "Churn Category"]]
-
-#%%
