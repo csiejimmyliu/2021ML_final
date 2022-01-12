@@ -168,10 +168,6 @@ for col in clean_data.columns:
 clean_data
 
 #%%
-# todo: feature selection
-
-
-#%%
 train_data = pd.merge(
     left=train,
     right=clean_data,
@@ -192,7 +188,18 @@ train_data.to_csv('./preprocessed_data/train_data.csv', index=False)
 test_data.to_csv('./preprocessed_data/test_data.csv', index=False)
 
 #%%
-# todo: modeling
+train_data = pd.read_csv('./preprocessed_data/train_data.csv')
+test_data = pd.read_csv('./preprocessed_data/test_data.csv')
+
+#%%
+###################
+# Feature Selection 
+###################
+
+#%%
+###################
+# Modeling 
+###################
 
 
 #%%
