@@ -15,20 +15,44 @@ train = pd.read_csv("./data/Train_IDs.csv")
 
 #%%
 # map city and zip to population of the city
+# if nan, use average of city or total
 loca = loca[['Customer ID','City','Zip Code']].sort_values(['City','Zip Code'])
-for i in range(1, len(loca)):
-    pre = loca.iloc[i - 1]
-    cur = loca.iloc[i]
-    if math.isnan(cur['Zip Code']):
-        if cur['City'] == pre['City']:
-            if math.isnan(pre['Zip Code']) == False:
-                loca['Zip Code'].iloc[i] = loca['Zip Code'].iloc[i - 1]
+total_pop = 0
+total_zip_cnt = 0
+city_avg_pop = dict()
+for city in loca['City'].unique():
+    if city == np.nan:
+        continue
+    city_zips = loca.loc[loca['City'] == city]['Zip Code'].unique()
+    city_pop = 0
+    city_zip_cnt = 0
+    for zip in city_zips:
+        if zip == np.nan:
+            continue
+        zip_pop = pop.loc[pop['Zip Code'] == zip]['Population']
+        if len(zip_pop) > 0:
+            city_pop += zip_pop.iloc[0]
+            city_zip_cnt += 1
+    if city_zip_cnt == 0:
+        city_avg_pop[city] = 0
+    else:
+        city_avg_pop[city] = city_pop / city_zip_cnt
+    total_pop += city_pop
+    total_zips += city_zip_cnt
+city_avg_pop[np.nan] = total_pop / total_zips
+# for key, value in city_avg_pop.items():
+#     print("{}: {}" .format(key, value))
+
 loca_pop=pd.merge(
     left=loca,
     right=pop,
     how='left',
     on='Zip Code'
 )
+for i in range(len(loca_pop)):
+    if np.isnan(loca_pop['Population'].iloc[i]):
+        city = loca_pop['City'].iloc[i]
+        loca_pop['Population'].iloc[i] = int(city_avg_pop[city])
 
 #%%
 data = pd.merge(
@@ -38,6 +62,7 @@ data = pd.merge(
     on='Customer ID',
     suffixes=('_dmg', '_loca')
 )
+
 data = pd.merge(
     left=data,
     right=sat,
@@ -59,7 +84,6 @@ data = pd.merge(
     on='Customer ID',
     suffixes=('', '_stat')
 )
-data
 
 cat_cols = [
     'Gender',
@@ -105,7 +129,6 @@ real_cols_fill_zero = [
 
 label_col = 'Churn Category'
 
-
 #%%
 ###################
 # Pre-processing 
@@ -123,6 +146,7 @@ for col in real_cols_fill_avg:
 for col in real_cols_fill_zero:
     onehot_data[col].fillna(0, inplace=True)
 
+#%%
 # label to numeric category
 label_cat = dict({
     'No Churn' : 0,
@@ -133,7 +157,15 @@ label_cat = dict({
     'Other' : 5,
     np.nan : -1
 })
-onehot_data[label_col] = onehot_data[label_col].map(label_cat).value_counts()
+onehot_data[label_col] = onehot_data[label_col].map(label_cat)
+
+#%%
+clean_data = onehot_data
+for col in clean_data.columns:
+    nan_num = clean_data[col].isnull().sum()
+    if nan_num > 0:
+        print("{}: {}" .format(col, nan_num))
+clean_data
 
 #%%
 # todo: feature selection
@@ -142,18 +174,22 @@ onehot_data[label_col] = onehot_data[label_col].map(label_cat).value_counts()
 #%%
 train_data = pd.merge(
     left=train,
-    right=data,
+    right=clean_data,
     how='left',
     on='Customer ID',
     suffixes=('', '_')
 )
 test_data = pd.merge(
     left=test,
-    right=data,
+    right=clean_data,
     how='left',
     on='Customer ID',
     suffixes=('', '_')
 )
+
+#%%
+train_data.to_csv('./preprocessed_data/train_data.csv', index=False)
+test_data.to_csv('./preprocessed_data/test_data.csv', index=False)
 
 #%%
 # todo: modeling
