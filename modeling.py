@@ -79,7 +79,7 @@ xgb1 = XGBClassifier(
     objective= 'multi:softprob',
     nthread=4,
     scale_pos_weight=1,
-    num_class=NUM_CLASS
+    num_class=NUM_CLASS,
     seed=1126
 )
 modelfit(xgb1, train_data, predictors)
@@ -104,9 +104,10 @@ param_test1 = {
  'min_child_weight':range(1,6,2)
 }
 gsearch1 = GridSearchCV(
-    estimator=xgb2,param_grid=param_test1,scoring='f1',n_jobs=4,cv=5
+    estimator=xgb2,param_grid=param_test1,scoring='accuracy',n_jobs=4,cv=5
 )
 gsearch1.fit(train_data[predictors],train_data[target])
 gsearch1.cv_results_, gsearch1.best_params_, gsearch1.best_score_
 
 # %%
+gsearch1.cv_results_
