@@ -21,19 +21,29 @@ import matplotlib.pyplot as plt
 from matplotlib.pyplot import rcParams
 rcParams['figure.figsize'] = 12, 4
 
+APPLY_NORMALIZATION = True
+
 #%%
-train_data = pd.read_csv('./preprocessed_data/train_data.csv')
-train_data = train_data.loc[train_data['Churn Category'] != -1]
-target = 'Churn Category'
-IDcol = 'Customer ID'
-test_data = pd.read_csv('./preprocessed_data/test_data.csv')
+if (APPLY_NORMALIZATION):
+    train_data = pd.read_csv('./preprocessed_data/train_data_normalized.csv')
+    train_data = train_data.loc[train_data['Churn Category'] != -1]
+    target = 'Churn Category'
+    IDcol = 'Customer ID'
+    test_data = pd.read_csv('./preprocessed_data/test_data_normalized.csv')
+else:
+    train_data = pd.read_csv('./preprocessed_data/train_data.csv')
+    train_data = train_data.loc[train_data['Churn Category'] != -1]
+    target = 'Churn Category'
+    IDcol = 'Customer ID'
+    test_data = pd.read_csv('./preprocessed_data/test_data.csv')
+
+NUM_CLASS = len(train_data[target].unique())
 
 #%%
 def modelfit(alg, dtrain, predictors,useTrainCV=True, cv_folds=5, early_stopping_rounds=50):
     
     if useTrainCV:
         xgb_param = alg.get_xgb_params()
-        xgb_param['num_class'] = 6
         xgtrain = xgb.DMatrix(dtrain[predictors].values, label=dtrain[target].values)
         cvresult = xgb.cv(xgb_param, xgtrain, num_boost_round=alg.get_params()['n_estimators'], nfold=cv_folds,
             metrics='merror', early_stopping_rounds=early_stopping_rounds, verbose_eval=False)
@@ -69,9 +79,34 @@ xgb1 = XGBClassifier(
     objective= 'multi:softprob',
     nthread=4,
     scale_pos_weight=1,
+    num_class=NUM_CLASS
     seed=1126
- )
+)
 modelfit(xgb1, train_data, predictors)
 
 #%%
-print(1)
+xgb2 = XGBClassifier(
+    learning_rate =0.1,
+    n_estimators=1000,
+    max_depth=5,
+    min_child_weight=1,
+    gamma=0,
+    subsample=0.8,
+    colsample_bytree=0.8,
+    objective= 'multi:softprob',
+    nthread=4,
+    scale_pos_weight=1,
+    num_class=NUM_CLASS,
+    seed=1126
+)
+param_test1 = {
+ 'max_depth':range(3,10,2),
+ 'min_child_weight':range(1,6,2)
+}
+gsearch1 = GridSearchCV(
+    estimator=xgb2,param_grid=param_test1,scoring='f1',n_jobs=4,cv=5
+)
+gsearch1.fit(train_data[predictors],train_data[target])
+gsearch1.cv_results_, gsearch1.best_params_, gsearch1.best_score_
+
+# %%
