@@ -3,6 +3,11 @@ import math
 import pandas as pd
 import numpy as np
 
+import matplotlib.pyplot as plt
+%matplotlib inline
+from matplotlib.pyplot import rcParams
+rcParams['figure.figsize'] = 12, 4
+
 # %%
 dmg = pd.read_csv("./data/demographics.csv")
 loca = pd.read_csv("./data/location.csv")
@@ -137,6 +142,13 @@ real_cols_fill_zero = [
 
 label_col = 'Churn Category'
 
+#%%
+feat_imp = pd.Series(data['Age'].sort_values(ascending=False))
+plt.boxplot(feat_imp)
+plt.ylabel('Count')
+
+#%%
+data[['Population']].plot(kind='hist', bins=30)
 
 #%%
 # one hot
