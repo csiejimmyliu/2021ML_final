@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 from matplotlib.pyplot import rcParams
 rcParams['figure.figsize'] = 12, 4
 
+APPLY_NORMALIZE = True
+
 # %%
 dmg = pd.read_csv("./data/demographics.csv")
 loca = pd.read_csv("./data/location.csv")
@@ -143,16 +145,32 @@ real_cols_fill_zero = [
 label_col = 'Churn Category'
 
 #%%
-feat_imp = pd.Series(data['Age'].sort_values(ascending=False))
-plt.boxplot(feat_imp)
-plt.ylabel('Count')
+# visualization
+for col in real_cols_fill_avg:
+    plot = data[[col]].plot(kind='hist', bins=30)
+    fig = plot.get_figure()
+    fig.savefig("./img/before_normalize/bn_" + col + ".png")
+
+for col in real_cols_fill_zero:
+    plot = data[[col]].plot(kind='hist', bins=30)
+    fig = plot.get_figure()
+    fig.savefig("./img/before_normalize/bn_" + col + ".png")
 
 #%%
-data[['Population']].plot(kind='hist', bins=30)
+# min-max normalization
+def min_max_normalize(s):
+    return (s - s.min())/(s.max()-s.min())
+
+normalized_data = data.copy()
+normalized_data[real_cols_fill_avg] = normalized_data[real_cols_fill_avg].apply(min_max_normalize, axis=0)
+normalized_data[real_cols_fill_zero] = normalized_data[real_cols_fill_zero].apply(min_max_normalize, axis=0)
 
 #%%
 # one hot
-onehot_data = pd.get_dummies(data=data, columns=cat_cols, dummy_na=True)
+if (APPLY_NORMALIZE):
+    onehot_data = pd.get_dummies(data=normalized_data, columns=cat_cols, dummy_na=True)
+else:
+    onehot_data = pd.get_dummies(data=data, columns=cat_cols, dummy_na=True)
 
 #%%
 # fill real-valued nan
@@ -205,5 +223,9 @@ test_data = pd.merge(
 
 #%%
 # dump data
-train_data.to_csv('./preprocessed_data/train_data.csv', index=False)
-test_data.to_csv('./preprocessed_data/test_data.csv', index=False)
+if (APPLY_NORMALIZE):
+    train_data.to_csv('./preprocessed_data/train_data_normalized.csv', index=False)
+    test_data.to_csv('./preprocessed_data/test_data_normalized.csv', index=False)
+else:
+    train_data.to_csv('./preprocessed_data/train_data.csv', index=False)
+    test_data.to_csv('./preprocessed_data/test_data.csv', index=False)
