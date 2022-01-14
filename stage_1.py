@@ -379,8 +379,11 @@ gsearch8.fit(train[predictors],train[target])
 gsearch8.cv_results_, gsearch8.best_params_, gsearch8.best_score_
 
 #%%
-modelfit(xgb6, train, predictors)
-test_data['Churn Category'] = xgb6.predict(test_data[predictors])
+modelfit(xgb7, train, predictors)
+stage_1_label = xgb7.predict(test_data[predictors])
 
 #%%
-test_data[['Customer ID', 'Churn Category']].to_csv('./prediction/version1.csv', index=False)
+test_data['Churn Category'] = stage_1_label
+
+#%%
+test_data[['Customer ID', 'Churn Category']].to_csv('./prediction/stage_1_label.csv', index=False)
