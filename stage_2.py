@@ -63,8 +63,8 @@ xgb1 = XGBClassifier(
 
 # %%
 oversample = RandomOverSampler()
-X = train_1to5.iloc[:, 1:77]
-y = train_1to5.iloc[:, 77]
+X = train_1to5[predictors]
+y = train_1to5[target]
 X_res, y_res = oversample.fit_resample(X, y)
 
 # %%
@@ -212,6 +212,8 @@ xgb6 = XGBClassifier(
 )
 cv_results = cross_validate(xgb6, X_res, y_res, cv=5, scoring='accuracy')
 cv_results['test_score']
+#%%
+xgb6.fit(X_res, y_res)
 
 # %%
 param_test6 = {
@@ -240,3 +242,25 @@ xgb7 = XGBClassifier(
 )
 cv_results = cross_validate(xgb7, X_res, y_res, cv=5, scoring='accuracy')
 cv_results['test_score']
+
+#%%
+stage_1_result = pd.read_csv('./prediction/stage_1_label.csv')
+stage_2_id = stage_1_result.loc[stage_1_result['Churn Category'] == 1][['Customer ID']]
+
+#%%
+stage_2_test_data = pd.merge(
+    left=stage_2_id,
+    right=test_data,
+    how='left',
+    on='Customer ID'
+)
+stage_2_test_data
+
+#%%
+stage_2_test_data[target] = xgb6.predict(stage_2_test_data[predictors])
+
+#%%
+stage_2_test_data[target].replace(0, 5, inplace=True)
+
+#%%
+stage_2_test_data[['Customer ID', 'Churn Category']].to_csv('./prediction/stage_2_label.csv', index=False)
