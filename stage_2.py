@@ -408,17 +408,17 @@ params1126 = {
     'num_class': 5, 
     'learning_rate': 0.01, 
     'n_estimators': 410, 
-    'max_depth': 5, 
-    'min_child_weight': 3, 
-    'gamma': 0.3, 
+    'max_depth': 6, 
+    'min_child_weight': 6.3, 
+    'gamma': 0.1, 
     'subsample': 0.5, 
-    'colsample_bytree': 0.5, 
+    'colsample_bytree': 0.9, 
     'objective': 'multi:softprob', 
     'nthread': 4, 
     'seed': 1126, 
     'verbosity': 0, 
     'use_label_encoder': False, 
-    'reg_alpha': 0.5
+    'reg_alpha': 0.01
 }
 
 params326 =  {
