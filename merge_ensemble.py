@@ -22,26 +22,9 @@ from sklearn.ensemble import VotingClassifier
 
 rcParams['figure.figsize'] = 12, 4
 
-APPLY_NORMALIZATION = True
 WITH_GROUPING = True
 SEED = 1126
-VERSION = 6
-
-#%%
-# import data
-if (APPLY_NORMALIZATION):
-    train = pd.read_csv('./preprocessed_data/train_data_normalized.csv')
-    train = train.loc[train['Churn Category'] != -1]
-    test = pd.read_csv('./preprocessed_data/test_data_normalized.csv')
-else:
-    train = pd.read_csv('./preprocessed_data/train_data.csv')
-    train = train.loc[train['Churn Category'] != -1]
-    test = pd.read_csv('./preprocessed_data/test_data.csv')
-
-target = 'Churn Category'
-IDcol = 'Customer ID'
-predictors = [x for x in train.columns if x not in [target, IDcol]]
-NUM_CLASS = len(train[target].unique())
+VERSION = 8
 
 #%%
 #########################
@@ -49,7 +32,18 @@ NUM_CLASS = len(train[target].unique())
 #########################
 
 #%%
-#data augmentation
+# import data
+train = pd.read_csv('./preprocessed_data/train_data_std_normalized.csv')
+train = train.loc[train['Churn Category'] != -1]
+test = pd.read_csv('./preprocessed_data/test_data_std_normalized.csv')
+
+target = 'Churn Category'
+IDcol = 'Customer ID'
+predictors = [x for x in train.columns if x not in [target, IDcol]]
+NUM_CLASS = len(train[target].unique())
+
+#%%
+# data augmentation
 train['Group Label'] = np.array(list(range(len(train))))
 
 group_kfold = StratifiedGroupKFold(n_splits=5)
@@ -60,13 +54,14 @@ for i in range(6):
 
 N=num_list[0]/5
 for i in range(1,6):
-    train=train.append(train.loc[train['Churn Category'] == i].sample(n=int(N-num_list[i]),replace=True,random_state=init_seed))
+    train=train.append(train.loc[train['Churn Category'] == i].sample(n=int(N-num_list[i]),replace=True,random_state=SEED))
 
 groups = np.array(train['Group Label'])
 train.drop('Group Label', axis=1, inplace=True)
 train['Churn Category']=np.where(train[target]==0,0,1)
 
 #%%
+# load models
 param_list_s1 = []
 xgb_s1 = XGBClassifier()
 for i in range(1, 6):
@@ -119,14 +114,9 @@ xgb_model_s1.fit(train[predictors], train[target])
 
 #%%
 # import data
-if (APPLY_NORMALIZATION):
-    train = pd.read_csv('./preprocessed_data/train_data_normalized.csv')
-    train = train.loc[train['Churn Category'] != -1]
-    test = pd.read_csv('./preprocessed_data/test_data_normalized.csv')
-else:
-    train = pd.read_csv('./preprocessed_data/train_data.csv')
-    train = train.loc[train['Churn Category'] != -1]
-    test = pd.read_csv('./preprocessed_data/test_data.csv')
+train = pd.read_csv('./preprocessed_data/train_data_std_normalized.csv')
+train = train.loc[train['Churn Category'] != -1]
+test = pd.read_csv('./preprocessed_data/test_data_std_normalized.csv')
 
 target = 'Churn Category'
 IDcol = 'Customer ID'
@@ -275,38 +265,38 @@ model_list = [
 ]
 
 #%%
-stage_2_predictors = ['Longitude', 'Latitude', 'Population',
-    'Avg Monthly Long Distance Charges', 'Monthly Charge', 'Age',
-    'Total Charges', 'Avg Monthly GB Download',
-    'Total Long Distance Charges', 'Total Revenue', 'Tenure in Months',
-    'Satisfaction Score', 'Gender_Male', 'Total Extra Data Charges',
-    'Gender_Female', 'Number of Referrals', 'Married_No', 'Offer_None',
-    'Paperless Billing_Yes', 'Premium Tech Support_No',
-    'Online Security_No', 'Paperless Billing_No', 'Married_nan',
-    'Multiple Lines_Yes', 'Online Backup_No', 'Streaming Music_No',
-    'Device Protection Plan_No', 'Married_Yes', 'Streaming TV_Yes',
-    'Total Refunds', 'Offer_Offer E', 'Contract_Month-to-Month',
-    'Internet Type_Fiber Optic', 'Device Protection Plan_Yes',
-    'Streaming Movies_No', 'Streaming TV_No', 'Multiple Lines_No',
-    'Gender_nan', 'Streaming Music_Yes', 'Online Security_Yes',
-    'Payment Method_Bank Withdrawal', 'Unlimited Data_No',
-    'Payment Method_Credit Card', 'Premium Tech Support_nan',
-    'Streaming TV_nan', 'Device Protection Plan_nan', 'Internet Type_Cable',
-    'Phone Service_Yes', 'Streaming Movies_Yes', 'Online Backup_Yes',
-    'Online Backup_nan', 'Internet Service_Yes', 'Streaming Music_nan',
-    'Payment Method_nan', 'Internet Service_No', 'Contract_nan',
-    'Internet Type_DSL', 'Paperless Billing_nan', 'Offer_Offer D',
-    'Multiple Lines_nan', 'Offer_nan', 'Streaming Movies_nan',
-    'Online Security_nan', 'Internet Type_nan', 'Premium Tech Support_Yes',
-    'Payment Method_Mailed Check', 'Contract_One Year',
-    'Unlimited Data_nan', 'Phone Service_nan', 'Number of Dependents',
-    'Offer_Offer C', 'Internet Service_nan', 'Unlimited Data_Yes',
-    'Internet Type_None', 'Phone Service_No', 'Offer_Offer B',
-    'Contract_Two Year']
+# stage_2_predictors = ['Longitude', 'Latitude', 'Population',
+#     'Avg Monthly Long Distance Charges', 'Monthly Charge', 'Age',
+#     'Total Charges', 'Avg Monthly GB Download',
+#     'Total Long Distance Charges', 'Total Revenue', 'Tenure in Months',
+#     'Satisfaction Score', 'Gender_Male', 'Total Extra Data Charges',
+#     'Gender_Female', 'Number of Referrals', 'Married_No', 'Offer_None',
+#     'Paperless Billing_Yes', 'Premium Tech Support_No',
+#     'Online Security_No', 'Paperless Billing_No', 'Married_nan',
+#     'Multiple Lines_Yes', 'Online Backup_No', 'Streaming Music_No',
+#     'Device Protection Plan_No', 'Married_Yes', 'Streaming TV_Yes',
+#     'Total Refunds', 'Offer_Offer E', 'Contract_Month-to-Month',
+#     'Internet Type_Fiber Optic', 'Device Protection Plan_Yes',
+#     'Streaming Movies_No', 'Streaming TV_No', 'Multiple Lines_No',
+#     'Gender_nan', 'Streaming Music_Yes', 'Online Security_Yes',
+#     'Payment Method_Bank Withdrawal', 'Unlimited Data_No',
+#     'Payment Method_Credit Card', 'Premium Tech Support_nan',
+#     'Streaming TV_nan', 'Device Protection Plan_nan', 'Internet Type_Cable',
+#     'Phone Service_Yes', 'Streaming Movies_Yes', 'Online Backup_Yes',
+#     'Online Backup_nan', 'Internet Service_Yes', 'Streaming Music_nan',
+#     'Payment Method_nan', 'Internet Service_No', 'Contract_nan',
+#     'Internet Type_DSL', 'Paperless Billing_nan', 'Offer_Offer D',
+#     'Multiple Lines_nan', 'Offer_nan', 'Streaming Movies_nan',
+#     'Online Security_nan', 'Internet Type_nan', 'Premium Tech Support_Yes',
+#     'Payment Method_Mailed Check', 'Contract_One Year',
+#     'Unlimited Data_nan', 'Phone Service_nan', 'Number of Dependents',
+#     'Offer_Offer C', 'Internet Service_nan', 'Unlimited Data_Yes',
+#     'Internet Type_None', 'Phone Service_No', 'Offer_Offer B',
+#     'Contract_Two Year']
 
 #%%
 xgb_model_s2 = VotingClassifier(estimators=model_list, voting='hard')
-xgb_model_s2.fit(X_res[stage_2_predictors], y_res)
+xgb_model_s2.fit(X_res[predictors], y_res)
 
 #%%
 #########################
@@ -330,13 +320,13 @@ test[target] = xgb_model_s1.predict(test[predictors])
 test_s2 = test.loc[test[target] == 1]
 
 #%%
-test_s2[target] = xgb_model_s2.predict(test_s2[stage_2_predictors])
+test_s2[target] = xgb_model_s2.predict(test_s2[predictors])
 test_s2[target] = test_s2[target] + 1
 
 #%%
 test_result = pd.merge(
     left=test,
-    right=test_s2[[IDcol,target]],
+    right=test_s2[[IDcol, target]],
     how='left',
     on='Customer ID',
     suffixes=('', '_2')
@@ -360,7 +350,7 @@ test_result[target].value_counts()
 
 #%%
 test_result['Churn Category'] = test_result['Churn Category'].astype(int)
-test_result[[IDcol, target]].to_csv('./prediction/version' + str(2) + '.csv', index=False)
+test_result[[IDcol, target]].to_csv('./prediction/version' + str(VERSION) + '.csv', index=False)
 
 # %%
 
