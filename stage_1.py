@@ -26,7 +26,7 @@ from sklearn.metrics import precision_score, make_scorer
 rcParams['figure.figsize'] = 12, 4
 
 APPLY_NORMALIZATION = True
-
+init_seed=1126
 #%%
 if (APPLY_NORMALIZATION):
     train = pd.read_csv('./preprocessed_data/train_data_normalized.csv')
@@ -62,7 +62,7 @@ for i in range(6):
 
 N=num_list[0]/5
 for i in range(1,6):
-    train=train.append(train.loc[train['Churn Category'] == i].sample(n=int(N-num_list[i]),replace=True))
+    train=train.append(train.loc[train['Churn Category'] == i].sample(n=int(N-num_list[i]),replace=True,random_state=init_seed))
 
 
 
@@ -120,7 +120,7 @@ xgb1 = XGBClassifier(
     objective= 'binary:logistic',
     nthread=4,
     scale_pos_weight=1,
-    seed=1126,
+    seed=init_seed,
     verbosity=0, 
     use_label_encoder=False
 )
@@ -150,38 +150,19 @@ xgb2 = XGBClassifier(
     objective= 'binary:logistic',
     nthread=4,
     scale_pos_weight=1,
-    seed=1126,
+    seed=init_seed,
     verbosity=0, 
     use_label_encoder=False
 )
 
+
+
 #%%
 
 
-max_score=0
-name_to_drop=None
-log_list=[]
-for item in predictors:
-    temp=[x for x in predictors if x not in [item,'Age']]
-    print(temp)
-    # gsearch1 = GridSearchCV(estimator=xgb2,param_grid=param_test1,scoring='f1',n_jobs=4,cv=group_kfold.split(train[predictors],train[target],groups))
-    # gsearch1.fit(train[predictors],train[target])
-    # if max_score<gsearch1.best_score_:
-    #     max_score=gsearch1.best_score_
-    #     name_to_drop=item
-    # log_list.append([item,gsearch1.best_score_])
-
-print(max_score)
-print(name_to_drop)
-#%%    
-
-print(len(log_list))
-
-#predictors=sort_index[:10]
 gsearch1 = GridSearchCV(estimator=xgb2,param_grid=param_test1,scoring='f1',n_jobs=4,cv=group_kfold.split(train[predictors],train[target],groups))
 gsearch1.fit(train[predictors],train[target])
-print(gsearch1.cv_results_, gsearch1.best_params_, gsearch1.best_score_)
-# opt = (3, 1)
+gsearch1.cv_results_, gsearch1.best_params_, gsearch1.best_score_
 
 #%%
 
@@ -234,7 +215,7 @@ xgb3 = XGBClassifier(
     objective= 'binary:logistic',
     nthread=4,
     scale_pos_weight=1,
-    seed=1126,
+    seed=init_seed,
     verbosity=0, 
     use_label_encoder=False
 )
@@ -276,7 +257,7 @@ xgb4 = XGBClassifier(
     objective= 'binary:logistic',
     nthread=4,
     scale_pos_weight=1,
-    seed=1126,
+    seed=init_seed,
     verbosity=0, 
     use_label_encoder=False
 )
@@ -325,7 +306,7 @@ xgb5 = XGBClassifier(
     objective= 'multi:softprob',
     nthread=-1,
     scale_pos_weight=1,
-    seed=1126,
+    seed=init_seed,
     verbosity=0, 
     use_label_encoder=False
 )
@@ -346,7 +327,7 @@ xgb6 = XGBClassifier(
     objective= 'multi:softprob',
     nthread=4,
     scale_pos_weight=1,
-    seed=1126,
+    seed=init_seed,
     verbosity=0, 
     use_label_encoder=False
 )
@@ -371,7 +352,7 @@ xgb7 = XGBClassifier(
     objective= 'binary:logistic',
     nthread=4,
     scale_pos_weight=1,
-    seed=1126,
+    seed=init_seed,
     verbosity=0, 
     use_label_encoder=False
 
@@ -413,3 +394,12 @@ arr=np.arange(10)
 print(np.delete(arr,3))
 print(arr)
 # %%
+X = np.ones((17, 2))
+y = np.array([0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+groups = np.array([1, 1, 2, 2, 3, 3, 3, 4, 5, 5, 5, 5, 6, 6, 7, 8, 8])
+cv = StratifiedGroupKFold(n_splits=3)
+for train_idxs, test_idxs in cv.split(X, y, groups):
+    print("TRAIN:", groups[train_idxs])
+    print("      ", y[train_idxs])
+    print(" TEST:", groups[test_idxs])
+    print("      ", y[test_idxs])
