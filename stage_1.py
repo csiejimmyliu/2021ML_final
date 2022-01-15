@@ -26,7 +26,7 @@ from sklearn.metrics import precision_score, make_scorer
 rcParams['figure.figsize'] = 12, 4
 
 APPLY_NORMALIZATION = True
-init_seed=1126
+init_seed=110
 #%%
 if (APPLY_NORMALIZATION):
     train = pd.read_csv('./preprocessed_data/train_data_normalized.csv')
@@ -111,16 +111,16 @@ def modelfit(alg, dtrain, predictors,useTrainCV=True, cv_folds=5, early_stopping
 #Choose all predictors except target & IDcols
 xgb1 = XGBClassifier(
     learning_rate =0.1,
-    n_estimators=202,
-    max_depth=7,
-    min_child_weight=1.5,
-    gamma=0.0,
-    subsample=0.7,
-    colsample_bytree=0.7,
+    n_estimators=264,
+    max_depth=4,
+    min_child_weight=2.75,
+    gamma=0,
+    subsample=0.8,
+    colsample_bytree=0.8,
     objective= 'binary:logistic',
     nthread=4,
     scale_pos_weight=1,
-    seed=1126,
+    seed=init_seed,
     verbosity=0, 
     use_label_encoder=False
 )
@@ -132,38 +132,31 @@ modelfit(xgb1, train, predictors)
 #%%
 
 
-sort_index=pd.Series(xgb1.get_booster().get_fscore()).sort_values(ascending=False).index
 
-temp=sort_index[:50]
-gsearch1 = GridSearchCV(estimator=xgb1,param_grid={},scoring='f1',n_jobs=4,cv=group_kfold.split(train[temp],train[target],groups))
-gsearch1.fit(train[temp],train[target])
+gsearch1 = GridSearchCV(estimator=xgb1,param_grid={},scoring='f1',n_jobs=4,cv=group_kfold.split(train[predictors],train[target],groups))
+gsearch1.fit(train[predictors],train[target])
 gsearch1.best_score_
 
-#%%
-sort_index=pd.Series(xgb1.get_booster().get_fscore()).sort_values(ascending=False).index
 
-gkfold=group_kfold.split(train[predictors],train[target],groups)
-
-#step2
 
 # %%
 param_test1 = {
     #'learning_rate':[i/100 for i in range(1,100)]
     #'max_depth':range(3,15,2),
-    #'min_child_weight':range(1,6,2)
+    'min_child_weight':range(1,6,2)
 }
 xgb2 = XGBClassifier(
     learning_rate =0.1,
-    n_estimators=234,
-    max_depth=7,
-    min_child_weight=1.5,
+    n_estimators=264,
+    max_depth=4,
+    min_child_weight=2.75,
     gamma=0,
     subsample=0.8,
     colsample_bytree=0.8,
     objective= 'binary:logistic',
     nthread=4,
     scale_pos_weight=1,
-    seed=1126,
+    seed=init_seed,
     verbosity=0, 
     use_label_encoder=False
 
@@ -178,14 +171,13 @@ gsearch1 = GridSearchCV(estimator=xgb2,param_grid=param_test1,scoring='f1',n_job
 gsearch1.fit(train[predictors],train[target])
 gsearch1.cv_results_, gsearch1.best_params_, gsearch1.best_score_
 
-#%%
 
 
 # %%
 # [-1,+1] of the param_test1 result
 param_test2 = {
- 'max_depth':[6,7,8],
- 'min_child_weight':[0,1,2]
+ 
+ 'min_child_weight':[2,3,4]
 }
 gsearch2 = GridSearchCV(estimator=xgb2,param_grid=param_test2,scoring='f1',n_jobs=4,cv=group_kfold.split(train[predictors],train[target],groups))
 gsearch2.fit(train[predictors],train[target])
@@ -195,7 +187,7 @@ gsearch2.cv_results_, gsearch2.best_params_, gsearch2.best_score_
 # %%
 # try the bigger 4 number, if the param_test2 value is the max
 param_test2b = {
- 'min_child_weight':[0.25,0.5,0.75,1,1.25,1.5,1.75]
+ 'min_child_weight':[2.25,2.5,2.75,3,3.25,3.5,3.75]
 }
 gsearch2b = GridSearchCV(estimator=xgb2,param_grid=param_test2b,scoring='f1',n_jobs=4,cv=group_kfold.split(train[predictors],train[target],groups))
 gsearch2b.fit(train[predictors],train[target])
@@ -219,16 +211,16 @@ gsearch3.cv_results_, gsearch3.best_params_, gsearch3.best_score_
 #%%
 xgb3 = XGBClassifier(
     learning_rate =0.1,
-    n_estimators=234,
-    max_depth=7,
-    min_child_weight=1.5,
+    n_estimators=264,
+    max_depth=4,
+    min_child_weight=2.75,
     gamma=0,
     subsample=0.8,
     colsample_bytree=0.8,
     objective= 'binary:logistic',
     nthread=4,
     scale_pos_weight=1,
-    seed=1126,
+    seed=init_seed,
     verbosity=0, 
     use_label_encoder=False
 )
@@ -248,8 +240,8 @@ gsearch4.cv_results_, gsearch4.best_params_, gsearch4.best_score_
 
 #%%
 param_test5 = {
- 'subsample':[i/100.0 for i in range(55,80,5)],
- 'colsample_bytree':[i/100.0 for i in range(55,80,5)]
+ 'subsample':[i/100.0 for i in range(65,90,5)],
+ 'colsample_bytree':[i/100.0 for i in range(65,90,5)]
 }
 gsearch5 = GridSearchCV(estimator=xgb3,param_grid=param_test5,scoring='f1',n_jobs=4,cv=group_kfold.split(train[predictors],train[target],groups))
 gsearch5.fit(train[predictors],train[target])
@@ -259,16 +251,16 @@ gsearch5.cv_results_, gsearch5.best_params_, gsearch5.best_score_
 #%%
 xgb4 = XGBClassifier(
     learning_rate =0.1,
-    n_estimators=234,
-    max_depth=7,
-    min_child_weight=1.5,
-    gamma=0.0,
-    subsample=0.7,
-    colsample_bytree=0.7,
+    n_estimators=264,
+    max_depth=4,
+    min_child_weight=2.75,
+    gamma=0,
+    subsample=0.8,
+    colsample_bytree=0.8,
     objective= 'binary:logistic',
     nthread=4,
     scale_pos_weight=1,
-    seed=1126,
+    seed=init_seed,
     verbosity=0, 
     use_label_encoder=False
 )
@@ -327,16 +319,16 @@ modelfit(xgb5, train, predictors)
 #%%
 xgb7 = XGBClassifier(
     learning_rate =0.1,
-    n_estimators=202,
-    max_depth=7,
-    min_child_weight=1.5,
-    gamma=0.0,
-    subsample=0.7,
-    colsample_bytree=0.7,
+    n_estimators=264,
+    max_depth=4,
+    min_child_weight=2.75,
+    gamma=0,
+    subsample=0.8,
+    colsample_bytree=0.8,
     objective= 'binary:logistic',
     nthread=4,
     scale_pos_weight=1,
-    seed=1126,
+    seed=init_seed,
     verbosity=0, 
     use_label_encoder=False
 
