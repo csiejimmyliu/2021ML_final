@@ -10,6 +10,7 @@ from sklearn import metrics   #Additional scklearn functions
 from sklearn.model_selection import StratifiedGroupKFold
 
 from imblearn.over_sampling import RandomOverSampler
+from imblearn.under_sampling import RandomUnderSampler
 
 import xgboost as xgb
 from xgboost.sklearn import XGBClassifier
@@ -23,7 +24,7 @@ rcParams['figure.figsize'] = 12, 4
 
 APPLY_NORMALIZATION = True
 WITH_GROUPING = True
-SEED = 1124
+SEED = 326
 
 #%%
 # import data
@@ -47,25 +48,31 @@ NUM_CLASS = len(train[target].unique())
 train_1to5 = train.loc[train['Churn Category']  != 0].copy()
 for i in range(1,6):
     train_1to5['Churn Category'].replace(i, i-1, inplace=True)
-if WITH_GROUPING:
-    train_1to5['Group Label'] = np.array(list(range(1108)))
 train_1to5['Churn Category'].value_counts()
+
+#%%
+# random undersampling
+X = train_1to5[predictors]
+y = train_1to5[target]
+sampling_num = dict(y.value_counts())
+sampling_num[0] = 300
+underample = RandomUnderSampler(sampling_strategy=sampling_num, 
+    random_state=SEED)
+X_under, y_under = underample.fit_resample(X, y)
+y_under.value_counts()
 
 # %%
 # random oversample and grouping
 # prevent duplicate examples from appearing in both training and validation sets
-oversample = RandomOverSampler(random_state=SEED)
 if WITH_GROUPING:
-    X = train_1to5[predictors+['Group Label']]
-else:
-    X = train_1to5[predictors]
-y = train_1to5[target]
-X_res, y_res = oversample.fit_resample(X, y)
+    X_under['Group Label'] = np.array(list(range(len(X_under))))
+oversample = RandomOverSampler(random_state=SEED)
+X_res, y_res = oversample.fit_resample(X_under, y_under)
 print(y_res.value_counts())
 if WITH_GROUPING:
     groups = np.array(X_res['Group Label'])
     X_res.drop('Group Label', axis=1, inplace=True)
-    group_kfold = StratifiedGroupKFold(n_splits=5, shuffle=False, random_state=SEED)
+    group_kfold = StratifiedGroupKFold(n_splits=5, shuffle=False)
 
 #%%
 # xgboost hyperparameters
@@ -75,8 +82,8 @@ initial_params = {
     'learning_rate': 0.1,
     'n_estimators': 1000,
     'max_depth': 5,
-    'min_child_weight': 1,
-    'gamma': 0,
+    'min_child_weight': 1.0,
+    'gamma': 0.0,
     'subsample': 0.8,
     'colsample_bytree': 0.8,
     'objective': 'multi:softprob',
@@ -87,6 +94,7 @@ initial_params = {
     'reg_alpha': 0
 }
 param_iterations = [initial_params] * (TUNING_STAGES + 1)
+scores = [0] * (TUNING_STAGES + 1)
 
 #%%
 # cross validate model
@@ -107,7 +115,8 @@ def cv_model(params, data_X, data_y, folds):
         use_label_encoder=params['use_label_encoder'],
         reg_alpha = params['reg_alpha']
     )
-    cv_results = cross_validate(alg, data_X, data_y, cv=folds, scoring='f1_micro')
+    cv_results = cross_validate(alg, data_X, data_y, 
+        cv=folds.split(data_X, data_y, groups), scoring='f1_micro')
     return cv_results['test_score']
 
 #%%
@@ -153,17 +162,17 @@ def grid_search(original_params, data_X, data_y, param_test, folds):
         use_label_encoder=original_params['use_label_encoder'],
         reg_alpha=original_params['reg_alpha']
     )
-    gsearch = GridSearchCV(estimator=alg, param_grid = param_test, scoring='f1_micro',n_jobs=16, cv=folds)
+    gsearch = GridSearchCV(estimator=alg, param_grid = param_test, 
+        scoring='f1_micro',n_jobs=16, cv=folds.split(data_X, data_y, groups))
     gsearch.fit(data_X, data_y)
-    print('best score: ', gsearch.best_score_)
-    return gsearch.best_params_
+    return gsearch.best_score_, gsearch.best_params_
 
 
 # %%
 # initial model performance
 iter_num = 0
-print('cv performance:', np.average(cv_model(param_iterations[iter_num], X_res, y_res, 
-    group_kfold.split(X_res, y_res, groups))))
+scores[iter_num] = np.average(cv_model(param_iterations[iter_num], X_res, y_res, group_kfold))
+print('cv performance:', scores[0])
 print('initial params: ', param_iterations[iter_num])
 
 #%%
@@ -182,8 +191,15 @@ param_test1 = {
     'max_depth':range(3, 10, 2),
     'min_child_weight':range(1, 8, 2)
 }
-to_update = grid_search(param_iterations[iter_num], X_res, y_res, 
-    param_test1, group_kfold)
+while True:
+    scores[iter_num], to_update = grid_search(param_iterations[iter_num-1], X_res, y_res, 
+        param_test1, group_kfold)
+    print('best score is ', scores[iter_num])
+    if scores[iter_num] < scores[iter_num - 1]:
+        print('score dropped')
+        continue
+    print('score better')
+    break
 new_params = param_iterations[iter_num-1].copy()
 for key, value in to_update.items():
     new_params[key] = value
@@ -207,8 +223,15 @@ param_test2 = {
         prev_mcw+1.5,
     ]
 }
-to_update = grid_search(param_iterations[iter_num], X_res, y_res, 
-    param_test2, group_kfold)
+while True:
+    scores[iter_num], to_update = grid_search(param_iterations[iter_num-1], X_res, y_res, 
+        param_test2, group_kfold)
+    print('best score is ', scores[iter_num])
+    if scores[iter_num] < scores[iter_num - 1]:
+        print('score dropped')
+        continue
+    print('score better')
+    break
 new_params = param_iterations[iter_num-1].copy()
 for key, value in to_update.items():
     new_params[key] = value
@@ -221,8 +244,15 @@ iter_num = 3
 param_test3 = {
     'gamma':[i/10.0 for i in range(0,5)]
 }
-to_update = grid_search(param_iterations[iter_num], X_res, y_res, 
-    param_test3, group_kfold.split(X_res, y_res, groups))
+while True:
+    scores[iter_num], to_update = grid_search(param_iterations[iter_num-1], X_res, y_res, 
+        param_test3, group_kfold)
+    print('best score is ', scores[iter_num])
+    if scores[iter_num] < scores[iter_num - 1]:
+        print('score dropped')
+        continue
+    print('score better')
+    break
 new_params = param_iterations[iter_num-1].copy()
 for key, value in to_update.items():
     new_params[key] = value
@@ -236,8 +266,15 @@ param_test4 = {
     'subsample':[i/10.0 for i in range(6,10)],
     'colsample_bytree':[i/10.0 for i in range(6,10)]
 }
-to_update = grid_search(param_iterations[iter_num], X_res, y_res, 
-    param_test4, group_kfold.split(X_res, y_res, groups))
+while True:
+    scores[iter_num], to_update = grid_search(param_iterations[iter_num-1], X_res, y_res, 
+        param_test4, group_kfold)
+    print('best score is ', scores[iter_num])
+    if scores[iter_num] < scores[iter_num - 1]:
+        print('score dropped')
+        continue
+    print('score better')
+    break
 new_params = param_iterations[iter_num-1].copy()
 for key, value in to_update.items():
     new_params[key] = value
@@ -253,8 +290,15 @@ param_test5 = {
     'subsample':[i/100.0 for i in range(prev_sub-10,prev_sub+15,5)],
     'colsample_bytree':[i/100.0 for i in range(prev_csb-10,prev_csb+15,5)]
 }
-to_update = grid_search(param_iterations[iter_num], X_res, y_res, 
-    param_test5, group_kfold.split(X_res, y_res, groups))
+while True:
+    scores[iter_num], to_update = grid_search(param_iterations[iter_num-1], X_res, y_res, 
+        param_test5, group_kfold)
+    print('best score is ', scores[iter_num])
+    if scores[iter_num] < scores[iter_num - 1]:
+        print('score dropped')
+        continue
+    print('score better')
+    break
 new_params = param_iterations[iter_num-1].copy()
 for key, value in to_update.items():
     new_params[key] = value
@@ -265,10 +309,17 @@ param_iterations[iter_num] = new_params.copy()
 # grid search 6
 iter_num = 6
 param_test6 = {
-    'reg_alpha':[1e-5, 1e-2, 0.1, 1, 100]
+    'reg_alpha':[0, 1e-5, 1e-2, 0.1, 1, 100]
 }
-to_update = grid_search(param_iterations[iter_num], X_res, y_res, 
-    param_test6, group_kfold.split(X_res, y_res, groups))
+while True:
+    scores[iter_num], to_update = grid_search(param_iterations[iter_num-1], X_res, y_res, 
+        param_test6, group_kfold)
+    print('best score is ', scores[iter_num])
+    if scores[iter_num] < scores[iter_num - 1]:
+        print('score dropped')
+        continue
+    print('score better')
+    break
 new_params = param_iterations[iter_num-1].copy()
 for key, value in to_update.items():
     new_params[key] = value
@@ -282,8 +333,15 @@ prev_a = param_iterations[iter_num-1]['reg_alpha']
 param_test7 = {
     'reg_alpha':[prev_a/2.0, prev_a, prev_a*1.5, prev_a*2.0, prev_a*5.0, prev_a*10.0]
 }
-to_update = grid_search(param_iterations[iter_num], X_res, y_res, 
-    param_test7, group_kfold.split(X_res, y_res, groups))
+while True:
+    scores[iter_num], to_update = grid_search(param_iterations[iter_num-1], X_res, y_res, 
+        param_test7, group_kfold)
+    print('best score is ', scores[iter_num])
+    if scores[iter_num] < scores[iter_num - 1]:
+        print('score dropped')
+        continue
+    print('score better')
+    break
 new_params = param_iterations[iter_num-1].copy()
 for key, value in to_update.items():
     new_params[key] = value
@@ -297,8 +355,15 @@ param_test8 = {
     'learning_rate':[0.1, 0.01, 0.001],
     'n_estimators':[100, 200, 300, 400, 500, 600, 700, 800, 900]
 }
-to_update = grid_search(param_iterations[iter_num], X_res, y_res, 
-    param_test8, group_kfold.split(X_res, y_res, groups))
+while True:
+    scores[iter_num], to_update = grid_search(param_iterations[iter_num-1], X_res, y_res, 
+        param_test8, group_kfold)
+    print('best score is ', scores[iter_num])
+    if scores[iter_num] < scores[iter_num - 1]:
+        print('score dropped')
+        continue
+    print('score better')
+    break
 new_params = param_iterations[iter_num-1].copy()
 for key, value in to_update.items():
     new_params[key] = value
@@ -312,154 +377,61 @@ prev_ne = param_iterations[iter_num-1]['n_estimators']
 param_test9 = {
     'n_estimators':[i for i in range(prev_ne-80, prev_ne+90, 10)]
 }
-to_update = grid_search(param_iterations[iter_num], X_res, y_res, 
-    param_test9, group_kfold.split(X_res, y_res, groups))
+while True:
+    scores[iter_num], to_update = grid_search(param_iterations[iter_num-1], X_res, y_res, 
+        param_test9, group_kfold)
+    print('best score is ', scores[iter_num])
+    if scores[iter_num] < scores[iter_num - 1]:
+        print('score dropped')
+        continue
+    print('score better')
+    break
 new_params = param_iterations[iter_num-1].copy()
 for key, value in to_update.items():
     new_params[key] = value
 print('best params: ', to_update, '\n' ,new_params)
 param_iterations[iter_num] = new_params.copy()
 
-
 #%%
 # graph feature importance
+iter_num = 9
 graph_imp(param_iterations[iter_num], X_res, y_res)
 
-#%%
-#parameters
-params1126 = {
+# %%
+# params
+
+params = {}
+
+params[1126] = {
     'num_class': 5, 
-    'learning_rate': 0.01, 
-    'n_estimators': 240, 
-    'max_depth': 6, 
-    'min_child_weight': 5.5, 
+    'learning_rate': 0.1, 
+    'n_estimators': 20, 
+    'max_depth': 9, 
+    'min_child_weight': 5, 
     'gamma': 0.3, 
-    'subsample': 0.6, 
-    'colsample_bytree': 0.6, 
+    'subsample': 0.9, 
+    'colsample_bytree': 0.85, 
     'objective': 'multi:softprob', 
     'nthread': 4, 
     'seed': 1126, 
     'verbosity': 0, 
     'use_label_encoder': False, 
-    'reg_alpha': 10.0
+    'reg_alpha': 0.0
 }
 
-params326 =  {
+params[326] = {
     'num_class': 5, 
     'learning_rate': 0.001, 
-    'n_estimators': 30, 
-    'max_depth': 9, 
-    'min_child_weight': 1.3, 
-    'gamma': 0.3, 
-    'subsample': 0.9, 
-    'colsample_bytree': 0.9, 
+    'n_estimators': 620, 
+    'max_depth': 4, 
+    'min_child_weight': 0, 
+    'gamma': 0.0, 
+    'subsample': 0.8, 
+    'colsample_bytree': 0.8, 
     'objective': 'multi:softprob', 
     'nthread': 4, 
     'seed': 326, 
     'verbosity': 0, 
     'use_label_encoder': False, 
-    'reg_alpha': 0.01
+    'reg_alpha': 0.0
 }
-
-params1115 = {
-    'num_class': 5, 
-    'learning_rate': 0.001, 
-    'n_estimators': 170, 
-    'max_depth': 3, 
-    'min_child_weight': 4, 
-    'gamma': 0.0, 
-    'subsample': 0.55, 
-    'colsample_bytree': 0.6, 
-    'objective': 'multi:softprob', 
-    'nthread': 4, 
-    'seed': 1115, 
-    'verbosity': 0, 
-    'use_label_encoder': False, 
-    'reg_alpha': 5e-06
-}
-
-params110 = {
-    'num_class': 5, 
-    'learning_rate': 0.01, 
-    'n_estimators': 670, 
-    'max_depth': 6, 
-    'min_child_weight': 4.3, 
-    'gamma': 0.0, 
-    'subsample': 0.6, 
-    'colsample_bytree': 0.9, 
-    'objective': 'multi:softprob', 
-    'nthread': 4, 
-    'seed': 110, 
-    'verbosity': 0, 
-    'use_label_encoder': False, 
-    'reg_alpha': 5e-06
-}
-
-params1124 = {
-    'num_class': 5, 
-    'learning_rate': 0.001, 
-    'n_estimators': 40, 
-    'max_depth': 3, 
-    'min_child_weight': 4.3, 
-    'gamma': 0.1, 
-    'subsample': 0.7, 
-    'colsample_bytree': 0.9, 
-    'objective': 'multi:softprob', 
-    'nthread': 4, 
-    'seed': 1124, 
-    'verbosity': 0, 
-    'use_label_encoder': False, 
-    'reg_alpha': 0.015
-}
-
-#%%
-# model fit
-def get_model(params):
-    alg = XGBClassifier(
-        num_class=params['num_class'],
-        learning_rate=params['learning_rate'],
-        n_estimators=params['n_estimators'],
-        max_depth=params['max_depth'],
-        min_child_weight=params['min_child_weight'],
-        gamma=params['gamma'],
-        subsample=params['subsample'],
-        colsample_bytree=params['colsample_bytree'],
-        objective=params['objective'],
-        nthread=params['nthread'],
-        seed=params['seed'],
-        verbosity=params['verbosity'],
-        use_label_encoder=params['use_label_encoder'],
-        reg_alpha = params['reg_alpha']
-    )
-    return alg
-stage_2_model = get_model(params1126)
-stage_2_model.fit(X_res, y_res, eval_metric='merror')
-feat_imp = pd.Series(stage_2_model.get_booster().get_fscore()).sort_values(ascending=False)
-feat_imp.plot(kind='bar', title='Feature Importances')
-plt.ylabel('Feature Importance Score')
-
-#%%
-# save_model
-stage_2_model.save_model('stage_2_v1.json')
-
-#%%
-stage_1_result = pd.read_csv('./prediction/stage_1_label.csv')
-stage_2_id = stage_1_result.loc[stage_1_result['Churn Category'] == 1][['Customer ID']]
-
-#%%
-stage_2_test_data = pd.merge(
-    left=stage_2_id,
-    right=test_data,
-    how='left',
-    on='Customer ID'
-)
-stage_2_test_data
-
-#%%
-stage_2_test_data[target] = xgb_stage2.predict(stage_2_test_data[predictors])
-
-#%%
-stage_2_test_data[target].replace(0, 5, inplace=True)
-
-#%%
-stage_2_test_data[['Customer ID', 'Churn Category']].to_csv('./prediction/stage_2_label.csv', index=False)
