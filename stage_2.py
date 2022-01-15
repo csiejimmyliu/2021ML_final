@@ -41,7 +41,7 @@ NUM_CLASS = len(train[target].unique())
 
 
 #%%
-# drop category 0, category 1 -> 5
+# drop category 0, category No. minus 1
 train_1to5 = train.loc[train['Churn Category']  != 0].copy()
 train_1to5['Churn Category'].replace(5, 0, inplace=True)
 train_1to5['Group Label'] = np.array(list(range(1108)))
@@ -62,6 +62,7 @@ group_kfold = StratifiedGroupKFold(n_splits=5)
 
 #%%
 # xgboost hyperparameters
+TUNING_STAGES = 11
 initial_params = {
     'num_class': 5,
     'learning_rate': 0.1,
@@ -72,12 +73,12 @@ initial_params = {
     'subsample': 0.8,
     'colsample_bytree': 0.8,
     'objective': 'multi:softprob',
-    'nthread': 16,
+    'nthread': 4,
     'seed': 1126,
     'verbosity': 0,
     'use_label_encoder': False
 }
-param_iterations = [initial_params] * 10
+param_iterations = [initial_params] * (TUNING_STAGES + 1)
 
 #%%
 # cross validate model
@@ -176,9 +177,11 @@ print('cv performance:', cv_model(param_iterations[iter_num], X_res, y_res, grou
 # %%
 # grid search 2
 iter_num = 2
+prev_md = param_iterations[iter_num-1]['max_depth']
+prev_mcw = param_iterations[iter_num-1]['min_child_weight']
 param_test2 = {
-    'max_depth':range(3, 8),
-    'min_child_weight':range(3, 8)
+    'max_depth':range(prev_md-2, prev_md+3),
+    'min_child_weight':range(prev_mcw-2, prev_mcw+3)
 }
 to_update = grid_search(param_iterations[iter_num], X_res, y_res, param_test2, group_kfold.split(X_res, y_res, groups))
 new_params = param_iterations[iter_num-1].copy()
@@ -237,9 +240,11 @@ print('cv performance:', cv_model(param_iterations[iter_num], X_res, y_res, grou
 # %%
 # grid search 5
 iter_num = 5
+prev_sub = param_iterations[iter_num-1]['subsample'] * 100
+prev_csb = param_iterations[iter_num-1]['colsample_bytree'] * 100
 param_test5 = {
-    'subsample':[i/100.0 for i in range(55,70,5)],
-    'colsample_bytree':[i/100.0 for i in range(85,100,5)]
+    'subsample':[i/100.0 for i in range(prev_sub-10,prev_sub+15,5)],
+    'colsample_bytree':[i/100.0 for i in range(prev_csb-10,prev_csb+15,5)]
 }
 to_update = grid_search(param_iterations[iter_num], X_res, y_res, param_test5, group_kfold.split(X_res, y_res, groups))
 new_params = param_iterations[iter_num-1].copy()
@@ -278,8 +283,9 @@ print('cv performance:', cv_model(param_iterations[iter_num], X_res, y_res, grou
 # %%
 # grid search 7
 iter_num = 7
+prev_a = param_iterations[iter_num-1]['reg_alpha']
 param_test7 = {
-    'reg_alpha':[0.5, 1, 1.5, 2, 5, 10]
+    'reg_alpha':[prev_a/2.0, prev_a, prev_a*1.5, prev_a*2.0, prev_a*5.0, prev_a*10.0]
 }
 to_update = grid_search(param_iterations[iter_num], X_res, y_res, param_test7, group_kfold.split(X_res, y_res, groups))
 new_params = param_iterations[iter_num-1].copy()
@@ -321,8 +327,9 @@ print('cv performance:', cv_model(param_iterations[iter_num], X_res, y_res, grou
 # %%
 # grid search 9
 iter_num = 9
+prev_ne = param_iterations[iter_num-1]['n_estimators']
 param_test9 = {
-    'n_estimators':[i for i in range(120, 290, 10)]
+    'n_estimators':[i for i in range(prev_ne-80, prev_ne+90, 10)]
 }
 to_update = grid_search(param_iterations[iter_num], X_res, y_res, param_test9, group_kfold.split(X_res, y_res, groups))
 new_params = param_iterations[iter_num-1].copy()
@@ -351,11 +358,19 @@ xgb_stage2 = XGBClassifier(
     subsample=0.65,
     colsample_bytree=0.9,
     objective='multi:softprob',
-    nthread=16,
+    nthread=4,
     seed=1126,
     verbosity=0,
     use_label_encoder=False
 )
+xgb_stage2.fit(X_res, y_res)
+feat_imp = pd.Series(xgb_stage2.get_booster().get_fscore()).sort_values(ascending=False)
+feat_imp.plot(kind='bar', title='Feature Importances')
+plt.ylabel('Feature Importance Score')
+
+#%%
+# save_model
+xgb_stage2.save_model('stage_2_v1.json')
 
 #%%
 stage_1_result = pd.read_csv('./prediction/stage_1_label.csv')
