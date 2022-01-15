@@ -4,6 +4,8 @@ import pandas as pd
 import xgboost as xgb
 from xgboost.sklearn import XGBClassifier
 
+VERSION = 5
+
 #%%
 test = pd.read_csv('./preprocessed_data/test_data_normalized.csv')
 target = 'Churn Category'
@@ -18,7 +20,11 @@ xgb_model_s2 = XGBClassifier()
 xgb_model_s2.load_model('./stage_2_v1.json')
 
 #%%
-test[target] = xgb_model_s1.predict(test[predictors])
+tmp_test = pd.read_csv('./prediction/stage_1_label.csv')
+test[target] = tmp_test[target]
+
+#%%
+# test[target] = xgb_model_s1.predict(test[predictors])
 
 #%%
 test_s2 = test.loc[test[target] == 1]
@@ -54,6 +60,6 @@ test_result[target].value_counts()
 
 #%%
 test_result['Churn Category'] = test_result['Churn Category'].astype(int)
-test_result[[IDcol, target]].to_csv('./prediction/version2.csv', index=False)
+test_result[[IDcol, target]].to_csv('./prediction/version' + str(VERSION) + '.csv', index=False)
 
 # %%
