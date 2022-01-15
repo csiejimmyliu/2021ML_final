@@ -245,7 +245,7 @@ stage_2_predictors = ['Longitude', 'Latitude', 'Population',
     'Contract_Two Year']
 
 #%%
-xgb_voting.fit(X_res, y_res)
+xgb_voting.fit(X_res[stage_2_predictors], y_res)
 
 #%%
 xgb_voting.save_model('stage_2_voting.json')
