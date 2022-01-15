@@ -1,5 +1,5 @@
 #%%
-# Import library
+# import library
 import time
 import pandas as pd
 import numpy as np
@@ -24,6 +24,7 @@ rcParams['figure.figsize'] = 12, 4
 APPLY_NORMALIZATION = True
 
 #%%
+# import data
 if (APPLY_NORMALIZATION):
     train = pd.read_csv('./preprocessed_data/train_data_normalized.csv')
     train = train.loc[train['Churn Category'] != -1]
@@ -40,11 +41,11 @@ NUM_CLASS = len(train[target].unique())
 
 
 #%%
-# category 1 -> 5
-train_1to5 = train.loc[train['Churn Category']  != 0]
-train_1to5.loc[train_1to5['Churn Category'] == 5, 'Churn Category'] = 0
+# drop category 0, category 1 -> 5
+train_1to5 = train.loc[train['Churn Category']  != 0].copy()
+train_1to5['Churn Category'].replace(5, 0, inplace=True)
 train_1to5['Group Label'] = np.array(list(range(1108)))
-train_1to5.shape
+train_1to5['Churn Category'].value_counts()
 
 # %%
 # random oversample and grouping, prevent duplicate examples from appearing in both training and validation sets
@@ -61,7 +62,7 @@ group_kfold = StratifiedGroupKFold(n_splits=5)
 
 #%%
 # xgboost hyperparameters
-xgb_hyper_params = {
+initial_params = {
     'num_class': 5,
     'learning_rate': 0.1,
     'n_estimators': 105,
@@ -71,11 +72,12 @@ xgb_hyper_params = {
     'subsample': 0.8,
     'colsample_bytree': 0.8,
     'objective': 'multi:softprob',
-    'nthread': 4,
+    'nthread': 16,
     'seed': 1126,
     'verbosity': 0,
     'use_label_encoder': False
 }
+param_iterations = [initial_params] * 10
 
 #%%
 # cross validate model
@@ -122,6 +124,7 @@ def graph_imp(params, data_X, data_y):
     plt.ylabel('Feature Importance Score')
 
 #%%
+# grid search function
 def grid_search(original_params, data_X, data_y, param_test, folds):
     alg = XGBClassifier(
         num_class=original_params['num_class'],
@@ -145,184 +148,214 @@ def grid_search(original_params, data_X, data_y, param_test, folds):
 
 # %%
 # initial model performance
-print('cv performance:', cv_model(xgb_hyper_params, X_res, y_res, group_kfold.split(X_res, y_res, groups)))
-graph_imp(xgb_hyper_params, X_res, y_res)
+iter_num = 0
+print('cv performance:', cv_model(param_iterations[iter_num], X_res, y_res, group_kfold.split(X_res, y_res, groups)))
+print('initial params: ', param_iterations[iter_num])
+# graph_imp(param_iterations[iter_num], X_res, y_res)
 
 # %%
 # grid search 1
+iter_num = 1
 param_test1 = {
     'max_depth':range(3,10,2),
     'min_child_weight':range(1,6,2)
 }
-to_update = grid_search(xgb_hyper_params, X_res, y_res, param_test1, group_kfold.split(X_res, y_res, groups))
-xgb_hyper_params2 = xgb_hyper_params.copy()
-print(to_update)
+to_update = grid_search(param_iterations[iter_num], X_res, y_res, param_test1, group_kfold.split(X_res, y_res, groups))
+new_params = param_iterations[iter_num-1].copy()
 for key, value in to_update.items():
-    xgb_hyper_params2[key] = value
+    new_params[key] = value
+print('best params: ', to_update, '\n' ,new_params)
+param_iterations[iter_num] = new_params.copy()
 
 #%%
-cv_model(xgb_hyper_params2, X_res, y_res, group_kfold.split(X_res, y_res, groups))
-graph_imp(xgb_hyper_params2, X_res, y_res)
+# performance after grid search 1
+iter_num = 1
+print('cv performance:', cv_model(param_iterations[iter_num], X_res, y_res, group_kfold.split(X_res, y_res, groups)))
+# graph_imp(param_iterations[iter_num], X_res, y_res)
 
 # %%
-xgb2 = XGBClassifier(
-    num_class=5,
-    learning_rate=0.1,
-    n_estimators=105,
-    max_depth=9,
-    min_child_weight=1,
-    gamma=0,
-    subsample=0.8,
-    colsample_bytree=0.8,
-    objective= 'multi:softprob',
-    nthread=4,
-    seed=1126,
-    verbosity=0,
-    use_label_encoder=False
-)
-cv_results = cross_validate(xgb2, X_res, y_res, cv=5, scoring='accuracy')
-cv_results['test_score']
-
-# %%
+# grid search 2
+iter_num = 2
 param_test2 = {
-    'max_depth':range(9,13),
+    'max_depth':range(3, 8),
+    'min_child_weight':range(3, 8)
+}
+to_update = grid_search(param_iterations[iter_num], X_res, y_res, param_test2, group_kfold.split(X_res, y_res, groups))
+new_params = param_iterations[iter_num-1].copy()
+for key, value in to_update.items():
+    new_params[key] = value
+print('best params: ', to_update, '\n' ,new_params)
+param_iterations[iter_num] = new_params.copy()
+
+#%%
+# performance after grid search 2
+iter_num = 2
+print('cv performance:', cv_model(param_iterations[iter_num], X_res, y_res, group_kfold.split(X_res, y_res, groups)))
+# graph_imp(param_iterations[iter_num], X_res, y_res)
+
+# %%
+# grid search 3
+iter_num = 3
+param_test3 = {
     'gamma':[i/10.0 for i in range(0,5)]
 }
-gsearch2 = GridSearchCV(estimator = xgb2, param_grid = param_test2, scoring='accuracy',n_jobs=8, cv=5)
-gsearch2.fit(X_res,y_res)
-gsearch2.best_params_, gsearch2.best_score_, gsearch2.cv_results_
+to_update = grid_search(param_iterations[iter_num], X_res, y_res, param_test3, group_kfold.split(X_res, y_res, groups))
+new_params = param_iterations[iter_num-1].copy()
+for key, value in to_update.items():
+    new_params[key] = value
+print('best params: ', to_update, '\n' ,new_params)
+param_iterations[iter_num] = new_params.copy()
+
+#%%
+# performance after grid search 3
+iter_num = 3
+print('cv performance:', cv_model(param_iterations[iter_num], X_res, y_res, group_kfold.split(X_res, y_res, groups)))
+# graph_imp(param_iterations[iter_num], X_res, y_res)
+
 
 # %%
-xgb3 = XGBClassifier(
-    num_class=5,
-    learning_rate=0.1,
-    n_estimators=105,
-    max_depth=11,
-    min_child_weight=1,
-    gamma=0.1,
-    subsample=0.8,
-    colsample_bytree=0.8,
-    objective= 'multi:softprob',
-    nthread=4,
-    seed=1126,
-    verbosity=0,
-    use_label_encoder=False
-)
-cv_results = cross_validate(xgb3, X_res, y_res, cv=5, scoring='accuracy')
-cv_results['test_score']
-# %%
-param_test3 = {
+# grid search 4
+iter_num = 4
+param_test4 = {
     'subsample':[i/10.0 for i in range(6,10)],
     'colsample_bytree':[i/10.0 for i in range(6,10)]
 }
-gsearch3 = GridSearchCV(estimator = xgb3, param_grid = param_test3, scoring='accuracy',n_jobs=16, cv=5)
-gsearch3.fit(X_res,y_res)
-gsearch3.best_params_, gsearch3.best_score_, gsearch3.cv_results_
+to_update = grid_search(param_iterations[iter_num], X_res, y_res, param_test4, group_kfold.split(X_res, y_res, groups))
+new_params = param_iterations[iter_num-1].copy()
+for key, value in to_update.items():
+    new_params[key] = value
+print('best params: ', to_update, '\n' ,new_params)
+param_iterations[iter_num] = new_params.copy()
+
+#%%
+# performance after grid search 4
+iter_num = 4
+print(param_iterations[iter_num])
+print('cv performance:', cv_model(param_iterations[iter_num], X_res, y_res, group_kfold.split(X_res, y_res, groups)))
+# graph_imp(param_iterations[iter_num], X_res, y_res)
 
 # %%
-xgb4 = XGBClassifier(
-    num_class=5,
-    learning_rate=0.1,
-    n_estimators=105,
-    max_depth=11,
-    min_child_weight=1,
-    gamma=0.1,
-    subsample=0.8,
-    colsample_bytree=0.6,
-    objective= 'multi:softprob',
-    nthread=4,
-    seed=1126,
-    verbosity=0,
-    use_label_encoder=False
-)
-cv_results = cross_validate(xgb4, X_res, y_res, cv=5, scoring='accuracy')
-cv_results['test_score']
-
-# %%
-param_test4 = {
-    'subsample':[i/100.0 for i in range(75,90,5)],
-    'colsample_bytree':[i/100.0 for i in range(55,70,5)]
-}
-gsearch4 = GridSearchCV(estimator = xgb4, param_grid = param_test4, scoring='accuracy',n_jobs=16, cv=5)
-gsearch4.fit(X_res,y_res)
-gsearch4.best_params_, gsearch4.best_score_, gsearch4.cv_results_
-
-# %%
-xgb5 = XGBClassifier(
-    num_class=5,
-    learning_rate=0.1,
-    n_estimators=105,
-    max_depth=11,
-    min_child_weight=1,
-    gamma=0.1,
-    subsample=0.8,
-    colsample_bytree=0.6,
-    objective= 'multi:softprob',
-    nthread=4,
-    seed=1126,
-    verbosity=0,
-    use_label_encoder=False
-)
-cv_results = cross_validate(xgb5, X_res, y_res, cv=5, scoring='accuracy')
-cv_results['test_score']
-
-# %%
+# grid search 5
+iter_num = 5
 param_test5 = {
+    'subsample':[i/100.0 for i in range(55,70,5)],
+    'colsample_bytree':[i/100.0 for i in range(85,100,5)]
+}
+to_update = grid_search(param_iterations[iter_num], X_res, y_res, param_test5, group_kfold.split(X_res, y_res, groups))
+new_params = param_iterations[iter_num-1].copy()
+for key, value in to_update.items():
+    new_params[key] = value
+print('best params: ', to_update, '\n' ,new_params)
+param_iterations[iter_num] = new_params.copy()
+
+#%%
+# performance after grid search 5
+iter_num = 5
+print(param_iterations[iter_num])
+print('cv performance:', cv_model(param_iterations[iter_num], X_res, y_res, group_kfold.split(X_res, y_res, groups)))
+# graph_imp(param_iterations[iter_num], X_res, y_res)
+
+# %%
+# grid search 6
+iter_num = 6
+param_test6 = {
     'reg_alpha':[1e-5, 1e-2, 0.1, 1, 100]
 }
-gsearch5 = GridSearchCV(estimator = xgb5, param_grid = param_test5, scoring='accuracy',n_jobs=16, cv=5)
-gsearch5.fit(X_res,y_res)
-gsearch5.best_params_, gsearch5.best_score_, gsearch5.cv_results_
+to_update = grid_search(param_iterations[iter_num], X_res, y_res, param_test6, group_kfold.split(X_res, y_res, groups))
+new_params = param_iterations[iter_num-1].copy()
+for key, value in to_update.items():
+    new_params[key] = value
+print('best params: ', to_update, '\n' ,new_params)
+param_iterations[iter_num] = new_params.copy()
 
-# %%
-xgb6 = XGBClassifier(
-    num_class=5,
-    learning_rate=0.1,
-    n_estimators=105,
-    max_depth=11,
-    min_child_weight=1,
-    gamma=0.1,
-    subsample=0.8,
-    colsample_bytree=0.6,
-    reg_alpha=0.01,
-    objective= 'multi:softprob',
-    nthread=16,
-    seed=1126,
-    verbosity=0,
-    use_label_encoder=False
-)
-cv_results = cross_validate(xgb6, X_res, y_res, cv=5, scoring='accuracy')
-cv_results['test_score']
 #%%
-xgb6.fit(X_res, y_res)
+# performance after grid search 6
+iter_num = 6
+print(param_iterations[iter_num])
+print('cv performance:', cv_model(param_iterations[iter_num], X_res, y_res, group_kfold.split(X_res, y_res, groups)))
+# graph_imp(param_iterations[iter_num], X_res, y_res)
 
 # %%
-param_test6 = {
-    'reg_alpha':[0, 0.001, 0.005, 0.01, 0.05]
+# grid search 7
+iter_num = 7
+param_test7 = {
+    'reg_alpha':[0.5, 1, 1.5, 2, 5, 10]
 }
-gsearch6 = GridSearchCV(estimator = xgb6, param_grid = param_test6, scoring='accuracy',n_jobs=16, cv=5)
-gsearch6.fit(X_res,y_res)
-gsearch6.best_params_, gsearch6.best_score_, gsearch6.cv_results_
+to_update = grid_search(param_iterations[iter_num], X_res, y_res, param_test7, group_kfold.split(X_res, y_res, groups))
+new_params = param_iterations[iter_num-1].copy()
+for key, value in to_update.items():
+    new_params[key] = value
+print('best params: ', to_update, '\n' ,new_params)
+param_iterations[iter_num] = new_params.copy()
+
+#%%
+# performance after grid search 7
+iter_num = 7
+print(param_iterations[iter_num])
+print('cv performance:', cv_model(param_iterations[iter_num], X_res, y_res, group_kfold.split(X_res, y_res, groups)))
+# graph_imp(param_iterations[iter_num], X_res, y_res)
+
 
 # %%
-xgb7 = XGBClassifier(
+# grid search 8
+iter_num = 8
+param_test8 = {
+    'learning_rate':[0.1, 0.01, 0.001],
+    'n_estimators':[100, 200, 300, 400, 500, 600, 700]
+}
+to_update = grid_search(param_iterations[iter_num], X_res, y_res, param_test8, group_kfold.split(X_res, y_res, groups))
+new_params = param_iterations[iter_num-1].copy()
+for key, value in to_update.items():
+    new_params[key] = value
+print('best params: ', to_update, '\n' ,new_params)
+param_iterations[iter_num] = new_params.copy()
+
+
+#%%
+# performance after grid search 8
+iter_num = 8
+print(param_iterations[iter_num])
+print('cv performance:', cv_model(param_iterations[iter_num], X_res, y_res, group_kfold.split(X_res, y_res, groups)))
+# graph_imp(param_iterations[iter_num], X_res, y_res)
+
+# %%
+# grid search 9
+iter_num = 9
+param_test9 = {
+    'n_estimators':[i for i in range(120, 290, 10)]
+}
+to_update = grid_search(param_iterations[iter_num], X_res, y_res, param_test9, group_kfold.split(X_res, y_res, groups))
+new_params = param_iterations[iter_num-1].copy()
+for key, value in to_update.items():
+    new_params[key] = value
+print('best params: ', to_update, '\n' ,new_params)
+param_iterations[iter_num] = new_params.copy()
+
+
+#%%
+# performance after grid search 9
+iter_num = 9
+print(param_iterations[iter_num])
+print('cv performance:', cv_model(param_iterations[iter_num], X_res, y_res, group_kfold.split(X_res, y_res, groups)))
+graph_imp(param_iterations[iter_num], X_res, y_res)
+
+#%%
+#final model
+xgb_stage2 = XGBClassifier(
     num_class=5,
-    learning_rate=0.1,
-    n_estimators=105,
-    max_depth=11,
-    min_child_weight=1,
-    gamma=0.1,
-    subsample=0.8,
-    colsample_bytree=0.6,
-    reg_alpha=0.01,
-    objective= 'multi:softprob',
+    learning_rate=0.001,
+    n_estimators=150,
+    max_depth=6,
+    min_child_weight=3,
+    gamma=0.0,
+    subsample=0.65,
+    colsample_bytree=0.9,
+    objective='multi:softprob',
     nthread=16,
     seed=1126,
     verbosity=0,
     use_label_encoder=False
 )
-cv_results = cross_validate(xgb7, X_res, y_res, cv=5, scoring='accuracy')
-cv_results['test_score']
 
 #%%
 stage_1_result = pd.read_csv('./prediction/stage_1_label.csv')
@@ -338,7 +371,7 @@ stage_2_test_data = pd.merge(
 stage_2_test_data
 
 #%%
-stage_2_test_data[target] = xgb6.predict(stage_2_test_data[predictors])
+stage_2_test_data[target] = xgb_stage2.predict(stage_2_test_data[predictors])
 
 #%%
 stage_2_test_data[target].replace(0, 5, inplace=True)
