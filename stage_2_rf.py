@@ -8,6 +8,7 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import cross_validate
 from sklearn import metrics   #Additional scklearn functions
 from sklearn.model_selection import StratifiedGroupKFold
+from sklearn.ensemble import RandomForestClassifier
 
 from imblearn.over_sampling import RandomOverSampler
 
@@ -19,9 +20,9 @@ import matplotlib.pyplot as plt
 %matplotlib inline
 from matplotlib.pyplot import rcParams
 
-rcParams['figure.figsize'] = 12, 4
-
 APPLY_NORMALIZATION = True
+WITH_GROUPING = True
+SEED = 1126
 
 #%%
 # import data
@@ -60,54 +61,4 @@ group_kfold = StratifiedGroupKFold(n_splits=5)
 # group_kfold.split(X_res, y_res, groups)
 
 #%%
-#final model
-xgb_stage2 = XGBClassifier(
-    num_class=5,
-    learning_rate=0.01,
-    n_estimators=410,
-    max_depth=5,
-    min_child_weight=3,
-    gamma=0.3,
-    subsample=0.5,
-    colsample_bytree=0.5,
-    objective='multi:softprob',
-    nthread=4,
-    seed=1126,
-    verbosity=0,
-    use_label_encoder=False,
-    reg_alpha= 0.1
-)
-xgb_stage2.fit(X_res, y_res)
-feat_imp = pd.Series(xgb_stage2.get_booster().get_fscore()).sort_values(ascending=False)
-feat_imp.plot(kind='bar', title='Feature Importances')
-plt.ylabel('Feature Importance Score')
-
-#%%
-score_w_i_features = {}
-for i in range(10, 80, 2):
-    X_res_amputated = X_res[feat_imp.keys()[0:i]].copy()
-    cv_results = cross_validate(xgb_stage2, X_res_amputated, 
-        y_res, cv=group_kfold.split(X_res, y_res, groups), scoring='accuracy')
-    avg_test_score = np.mean(cv_results['test_score'])
-    print(f'performance with first {i} ', avg_test_score)
-    score_w_i_features[i] = avg_test_score
-
-# %%
-score_w_i_features = pd.Series(score_w_i_features)
-score_w_i_features.plot()
-
-# %%
-score_w_i_features = {}
-for i in range(20, 40):
-    X_res_amputated = X_res[feat_imp.keys()[0:i]].copy()
-    cv_results = cross_validate(xgb_stage2, X_res_amputated, 
-        y_res, cv=group_kfold.split(X_res, y_res, groups), scoring='accuracy')
-    avg_test_score = np.mean(cv_results['test_score'])
-    print(f'performance with first {i} ', avg_test_score)
-    score_w_i_features[i] = avg_test_score
-# %%
-score_w_i_features = pd.Series(score_w_i_features)
-score_w_i_features.plot()
-
-#%%
-X_res_amputated = X_res[feat_imp.keys()[0:29]].copy()
+#
