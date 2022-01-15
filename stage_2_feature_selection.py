@@ -18,10 +18,13 @@ from xgboost import plot_importance
 import matplotlib.pyplot as plt
 %matplotlib inline
 from matplotlib.pyplot import rcParams
+from sklearn.ensemble import VotingClassifier
 
 rcParams['figure.figsize'] = 12, 4
 
 APPLY_NORMALIZATION = True
+WITH_GROUPING = True
+SEED = 1126
 
 #%%
 # import data
@@ -40,24 +43,28 @@ predictors = [x for x in train.columns if x not in [target, IDcol]]
 NUM_CLASS = len(train[target].unique())
 
 #%%
-# drop category 0, category 1 -> 5
+# drop category 0, category No. minus 1
 train_1to5 = train.loc[train['Churn Category']  != 0].copy()
-train_1to5['Churn Category'].replace(5, 0, inplace=True)
-train_1to5['Group Label'] = np.array(list(range(1108)))
+for i in range(1,6):
+    train_1to5['Churn Category'].replace(i, i-1, inplace=True)
+if WITH_GROUPING:
+    train_1to5['Group Label'] = np.array(list(range(1108)))
 train_1to5['Churn Category'].value_counts()
 
 # %%
 # random oversample and grouping, prevent duplicate examples from appearing in both training and validation sets
-oversample = RandomOverSampler()
-X = train_1to5[predictors+['Group Label']]
+oversample = RandomOverSampler(random_state=SEED)
+if WITH_GROUPING:
+    X = train_1to5[predictors+['Group Label']]
+else:
+    X = train_1to5[predictors]
 y = train_1to5[target]
 X_res, y_res = oversample.fit_resample(X, y)
 print(y_res.value_counts())
-groups = np.array(X_res['Group Label'])
-X_res.drop('Group Label', axis=1, inplace=True)
-# X_res.columns
-group_kfold = StratifiedGroupKFold(n_splits=5)
-# group_kfold.split(X_res, y_res, groups)
+if WITH_GROUPING:
+    groups = np.array(X_res['Group Label'])
+    X_res.drop('Group Label', axis=1, inplace=True)
+    group_kfold = StratifiedGroupKFold(n_splits=5)
 
 #%%
 #final model
