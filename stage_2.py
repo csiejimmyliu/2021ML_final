@@ -1,19 +1,19 @@
 #%%
-# Import librarie
+# Import library
 import time
 import pandas as pd
 import numpy as np
 
-from sklearn.feature_selection import SelectKBest
-from sklearn.model_selection import train_test_split
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import cross_validate
 from sklearn import metrics   #Additional scklearn functions
+from sklearn.model_selection import StratifiedGroupKFold
 
 from imblearn.over_sampling import RandomOverSampler
 
 import xgboost as xgb
 from xgboost.sklearn import XGBClassifier
+from xgboost import plot_importance
 
 import matplotlib.pyplot as plt
 %matplotlib inline
@@ -40,50 +40,83 @@ NUM_CLASS = len(train[target].unique())
 
 
 #%%
+# category 1 -> 5
 train_1to5 = train.loc[train['Churn Category']  != 0]
 train_1to5.loc[train_1to5['Churn Category'] == 5, 'Churn Category'] = 0
-train_1to5  
+train_1to5['Group Label'] = np.array(list(range(1108)))
+train_1to5.shape
 
 # %%
-xgb1 = XGBClassifier(
-    num_class=5,
-    learning_rate=0.1,
-    n_estimators=105,
-    max_depth=5,
-    min_child_weight=1,
-    gamma=0,
-    subsample=0.8,
-    colsample_bytree=0.8,
-    objective= 'multi:softprob',
-    nthread=4,
-    seed=1126,
-    verbosity=0,
-    use_label_encoder=False
-)
-
-# %%
+# random oversample and grouping, prevent duplicate examples from appearing in both training and validation sets
 oversample = RandomOverSampler()
-X = train_1to5[predictors]
+X = train_1to5[predictors+['Group Label']]
 y = train_1to5[target]
 X_res, y_res = oversample.fit_resample(X, y)
+print(y_res.value_counts())
+groups = np.array(X_res['Group Label'])
+X_res.drop('Group Label', axis=1, inplace=True)
+# X_res.columns
+group_kfold = StratifiedGroupKFold(n_splits=5)
+# group_kfold.split(X_res, y_res, groups)
+
+#%%
+# xgboost hyperparameters
+xgb_hyper_param = {
+    'num_class': 5,
+    'learning_rate': 0.1,
+    'n_estimators': 105,
+    'max_depth': 5,
+    'min_child_weight': 1,
+    'gamma': 0,
+    'subsample': 0.8,
+    'colsample_bytree': 0.8,
+    'objective': 'multi:softprob',
+    'nthread': 4,
+    'seed': 1126,
+    'verbosity': 0,
+    'use_label_encoder': False
+}
+
+#%%
+# cross validate model
+def cv_model(params, folds, data_X, data_y):
+    alg = XGBClassifier(
+        num_class=params['num_class'],
+        learning_rate=params['learning_rate'],
+        n_estimators=params['n_estimators'],
+        max_depth=params['max_depth'],
+        min_child_weight=params['min_child_weight'],
+        gamma=params['gamma'],
+        subsample=params['subsample'],
+        colsample_bytree=params['colsample_bytree'],
+        objective=params['objective'],
+        nthread=params['nthread'],
+        seed=params['seed'],
+        verbosity=params['verbosity'],
+        use_label_encoder=params['use_label_encoder']
+    )
+    cv_results = cross_validate(alg, data_X, data_y, cv=folds, scoring='accuracy')
+    return cv_results['test_score']
 
 # %%
-y_res.value_counts()
+cv_model(xgb_hyper_param, 5, X, y)
 
-# %%
-cv_results = cross_validate(xgb1, X_res, y_res, cv=5, scoring='accuracy')
-cv_results['test_score']
+#%%
+xgb1.fit(X_res, y_res)
+feat_imp = pd.Series(xgb1.get_booster().get_fscore()).sort_values(ascending=False)
+feat_imp.plot(kind='bar', title='Feature Importances')
+plt.ylabel('Feature Importance Score')
+
 
 # %%
 param_test1 = {
- 'max_depth':range(3,10,2),
- 'min_child_weight':range(1,6,2)
+    'max_depth':range(3,10,2),
+    'min_child_weight':range(1,6,2)
 }
 gsearch1 = GridSearchCV(estimator = xgb1, param_grid = param_test1, scoring='accuracy',n_jobs=4, cv=5)
 gsearch1.fit(X_res,y_res)
-
-# %%
 gsearch1.best_params_, gsearch1.best_score_, gsearch1.cv_results_
+
 # %%
 xgb2 = XGBClassifier(
     num_class=5,
@@ -102,6 +135,7 @@ xgb2 = XGBClassifier(
 )
 cv_results = cross_validate(xgb2, X_res, y_res, cv=5, scoring='accuracy')
 cv_results['test_score']
+
 # %%
 param_test2 = {
     'max_depth':range(9,13),
@@ -109,8 +143,8 @@ param_test2 = {
 }
 gsearch2 = GridSearchCV(estimator = xgb2, param_grid = param_test2, scoring='accuracy',n_jobs=8, cv=5)
 gsearch2.fit(X_res,y_res)
-# %%
 gsearch2.best_params_, gsearch2.best_score_, gsearch2.cv_results_
+
 # %%
 xgb3 = XGBClassifier(
     num_class=5,
