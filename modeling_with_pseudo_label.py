@@ -163,6 +163,11 @@ test_data[['Customer ID', 'Churn Category']].to_csv('./prediction/stage_1_label.
 ################################
 
 #%%
+################################
+# Stage 1
+################################
+
+#%%
 train = pd.read_csv('./preprocessed_data/train_data_normalized.csv')
 train_no_label = train.loc[train['Churn Category'] == -1]
 train = train.loc[train['Churn Category'] != -1]
@@ -177,26 +182,65 @@ train[target] = np.where(train[target]==0, 0, 1)
 train = train.reset_index(drop=True)
 
 #%%
-xgb_model = XGBClassifier()
-xgb_model.load_model('./stage_1_v1.json')
+xgb_model_s1 = XGBClassifier()
+xgb_model_s1.load_model('./stage_1_v1.json')
 
 #%%
 # prediction accuracy on labeled-train
-train_predictions = xgb_model.predict(train[predictors])
+train_predictions = xgb_model_s1.predict(train[predictors])
 print("Accuracy : %.4g" % metrics.accuracy_score(train[target].values, train_predictions))
 
 #%%
-train_no_label[target] = xgb_model.predict(train_no_label[predictors])
+train_no_label[target] = xgb_model_s1.predict(train_no_label[predictors])
 train_add_pseudo = train.append(train_no_label, ignore_index=True)
 
 #%%
-xgb_model.fit(train_add_pseudo[predictors], train_add_pseudo[target], eval_metric='error')
+xgb_model_s1.fit(train_add_pseudo[predictors], train_add_pseudo[target], eval_metric='error')
 
 #%%
-train_predictions = xgb_model.predict(train[predictors])
+train_predictions = xgb_model_s1.predict(train[predictors])
 print("Accuracy : %.4g" % metrics.accuracy_score(train[target].values, train_predictions))
 
 #%%
-xgb_model.save_model('./stage_1_pseudo_label_v1.json')
+xgb_model_s1.save_model('./stage_1_pseudo_label_v1.json')
 
-# %%
+#%%
+# train_add_pseudo[target] = xgb_model.predict(train_add_pseudo[predictors])
+
+#%%
+################################
+# Stage 2
+################################
+
+#%%
+train = pd.read_csv('./preprocessed_data/train_data_normalized.csv')
+train_no_label = train.loc[train['Churn Category'] == -1]
+train = train.loc[train['Churn Category'] != -1]
+test_data = pd.read_csv('./preprocessed_data/test_data_normalized.csv')
+
+#%%
+train_non_zero_a = train.loc[train[target] != 0]
+
+#%%
+train_no_label[target] = xgb_model_s1.predict(train_no_label[predictors])
+train_non_zero_b = train_no_label.loc[train_no_label[target] == 1]
+
+#%%
+xgb_model_s2 = XGBClassifier()
+xgb_model_s2.load_model('./stage_2_v1.json')
+
+#%%
+train_non_zero_b[target] = xgb_model_s2.predict(train_non_zero_b[predictors])
+train_non_zero_b[target] = train_non_zero_b[target] + 1
+
+#%%
+new_train = train_non_zero_a.append(train_non_zero_b, ignore_index=True)
+
+#%%
+new_train[target] = new_train[target] - 1
+
+#%%
+xgb_model_s2.fit(new_train[predictors], new_train[target])
+
+#%%
+xgb_model_s2.save_model('./stage_2_pseudo_label_v1.json')
