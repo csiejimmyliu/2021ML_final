@@ -90,7 +90,7 @@ feat_imp.plot(kind='bar', title='Feature Importances')
 X_res_amputated = X_res[feat_imp.keys()[0:29]].copy()
 
 #%%
-# model list
+# params list
 params1126 = {
     'num_class': 5, 
     'learning_rate': 0.01, 
@@ -206,14 +206,48 @@ model_list = [
     ('1124', get_model(params1124))
 ]
 
-# %%
-xgb_voting = VotingClassifier(estimators=model_list, voting='hard')
-cv_results = cross_validate(xgb_voting, X_res, y_res, 
-    cv=group_kfold.split(X_res, y_res, groups), scoring='f1_micro')
-
 #%%
+xgb_voting = VotingClassifier(estimators=model_list, voting='hard')
+cv_results = cross_validate(xgb_voting, X_res_amputated, y_res, 
+    cv=group_kfold.split(X_res, y_res, groups), scoring='f1_micro')
 cv_results['test_score']
 
 #%%
-xgb_voting.score(X_res, y_res)
+# stage 2 predictors
+feat_imp.keys()
+stage_2_predictors = ['Longitude', 'Latitude', 'Population',
+    'Avg Monthly Long Distance Charges', 'Monthly Charge', 'Age',
+    'Total Charges', 'Avg Monthly GB Download',
+    'Total Long Distance Charges', 'Total Revenue', 'Tenure in Months',
+    'Satisfaction Score', 'Gender_Male', 'Total Extra Data Charges',
+    'Gender_Female', 'Number of Referrals', 'Married_No', 'Offer_None',
+    'Paperless Billing_Yes', 'Premium Tech Support_No',
+    'Online Security_No', 'Paperless Billing_No', 'Married_nan',
+    'Multiple Lines_Yes', 'Online Backup_No', 'Streaming Music_No',
+    'Device Protection Plan_No', 'Married_Yes', 'Streaming TV_Yes',
+    'Total Refunds', 'Offer_Offer E', 'Contract_Month-to-Month',
+    'Internet Type_Fiber Optic', 'Device Protection Plan_Yes',
+    'Streaming Movies_No', 'Streaming TV_No', 'Multiple Lines_No',
+    'Gender_nan', 'Streaming Music_Yes', 'Online Security_Yes',
+    'Payment Method_Bank Withdrawal', 'Unlimited Data_No',
+    'Payment Method_Credit Card', 'Premium Tech Support_nan',
+    'Streaming TV_nan', 'Device Protection Plan_nan', 'Internet Type_Cable',
+    'Phone Service_Yes', 'Streaming Movies_Yes', 'Online Backup_Yes',
+    'Online Backup_nan', 'Internet Service_Yes', 'Streaming Music_nan',
+    'Payment Method_nan', 'Internet Service_No', 'Contract_nan',
+    'Internet Type_DSL', 'Paperless Billing_nan', 'Offer_Offer D',
+    'Multiple Lines_nan', 'Offer_nan', 'Streaming Movies_nan',
+    'Online Security_nan', 'Internet Type_nan', 'Premium Tech Support_Yes',
+    'Payment Method_Mailed Check', 'Contract_One Year',
+    'Unlimited Data_nan', 'Phone Service_nan', 'Number of Dependents',
+    'Offer_Offer C', 'Internet Service_nan', 'Unlimited Data_Yes',
+    'Internet Type_None', 'Phone Service_No', 'Offer_Offer B',
+    'Contract_Two Year']
 
+#%%
+xgb_voting.fit(X_res, y_res)
+
+#%%
+xgb_voting.save_model('stage_2_voting.json')
+
+# %%
