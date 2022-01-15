@@ -12,10 +12,10 @@ predictors = [x for x in test.columns if x not in [target, IDcol]]
 
 #%%
 xgb_model_s1 = XGBClassifier()
-xgb_model_s1.load_model('./stage_1_pseudo_label_v1.json')
+xgb_model_s1.load_model('./stage_1_v1.json')
 
 xgb_model_s2 = XGBClassifier()
-xgb_model_s2.load_model('./stage_2_pseudo_label_v1.json')
+xgb_model_s2.load_model('./stage_2_v1.json')
 
 #%%
 test[target] = xgb_model_s1.predict(test[predictors])
@@ -54,6 +54,6 @@ test_result[target].value_counts()
 
 #%%
 test_result['Churn Category'] = test_result['Churn Category'].astype(int)
-test_result[[IDcol, target]].to_csv('./prediction/version3.csv', index=False)
+test_result[[IDcol, target]].to_csv('./prediction/version2.csv', index=False)
 
 # %%
