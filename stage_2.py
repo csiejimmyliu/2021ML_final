@@ -61,7 +61,7 @@ group_kfold = StratifiedGroupKFold(n_splits=5)
 
 #%%
 # xgboost hyperparameters
-xgb_hyper_param = {
+xgb_hyper_params = {
     'num_class': 5,
     'learning_rate': 0.1,
     'n_estimators': 105,
@@ -79,7 +79,7 @@ xgb_hyper_param = {
 
 #%%
 # cross validate model
-def cv_model(params, folds, data_X, data_y):
+def cv_model(params, data_X, data_y, folds):
     alg = XGBClassifier(
         num_class=params['num_class'],
         learning_rate=params['learning_rate'],
@@ -98,24 +98,71 @@ def cv_model(params, folds, data_X, data_y):
     cv_results = cross_validate(alg, data_X, data_y, cv=folds, scoring='accuracy')
     return cv_results['test_score']
 
-# %%
-cv_model(xgb_hyper_param, 5, X, y)
+#%%
+# graphing function
+def graph_imp(params, data_X, data_y):
+    alg = XGBClassifier(
+        num_class=params['num_class'],
+        learning_rate=params['learning_rate'],
+        n_estimators=params['n_estimators'],
+        max_depth=params['max_depth'],
+        min_child_weight=params['min_child_weight'],
+        gamma=params['gamma'],
+        subsample=params['subsample'],
+        colsample_bytree=params['colsample_bytree'],
+        objective=params['objective'],
+        nthread=params['nthread'],
+        seed=params['seed'],
+        verbosity=params['verbosity'],
+        use_label_encoder=params['use_label_encoder']
+    )
+    alg.fit(data_X, data_y)
+    feat_imp = pd.Series(alg.get_booster().get_fscore()).sort_values(ascending=False)
+    feat_imp.plot(kind='bar', title='Feature Importances')
+    plt.ylabel('Feature Importance Score')
 
 #%%
-xgb1.fit(X_res, y_res)
-feat_imp = pd.Series(xgb1.get_booster().get_fscore()).sort_values(ascending=False)
-feat_imp.plot(kind='bar', title='Feature Importances')
-plt.ylabel('Feature Importance Score')
+def grid_search(original_params, data_X, data_y, param_test, folds):
+    alg = XGBClassifier(
+        num_class=original_params['num_class'],
+        learning_rate=original_params['learning_rate'],
+        n_estimators=original_params['n_estimators'],
+        max_depth=original_params['max_depth'],
+        min_child_weight=original_params['min_child_weight'],
+        gamma=original_params['gamma'],
+        subsample=original_params['subsample'],
+        colsample_bytree=original_params['colsample_bytree'],
+        objective=original_params['objective'],
+        nthread=original_params['nthread'],
+        seed=original_params['seed'],
+        verbosity=original_params['verbosity'],
+        use_label_encoder=original_params['use_label_encoder']
+    )
+    gsearch = GridSearchCV(estimator=alg, param_grid = param_test, scoring='accuracy',n_jobs=16, cv=folds)
+    gsearch.fit(data_X, data_y)
+    return gsearch.best_params_
 
 
 # %%
+# initial model performance
+print('cv performance:', cv_model(xgb_hyper_params, X_res, y_res, group_kfold.split(X_res, y_res, groups)))
+graph_imp(xgb_hyper_params, X_res, y_res)
+
+# %%
+# grid search 1
 param_test1 = {
     'max_depth':range(3,10,2),
     'min_child_weight':range(1,6,2)
 }
-gsearch1 = GridSearchCV(estimator = xgb1, param_grid = param_test1, scoring='accuracy',n_jobs=4, cv=5)
-gsearch1.fit(X_res,y_res)
-gsearch1.best_params_, gsearch1.best_score_, gsearch1.cv_results_
+to_update = grid_search(xgb_hyper_params, X_res, y_res, param_test1, group_kfold.split(X_res, y_res, groups))
+xgb_hyper_params2 = xgb_hyper_params.copy()
+print(to_update)
+for key, value in to_update.items():
+    xgb_hyper_params2[key] = value
+
+#%%
+cv_model(xgb_hyper_params2, X_res, y_res, group_kfold.split(X_res, y_res, groups))
+graph_imp(xgb_hyper_params2, X_res, y_res)
 
 # %%
 xgb2 = XGBClassifier(
