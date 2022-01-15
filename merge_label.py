@@ -20,10 +20,11 @@ xgb_model_s2 = XGBClassifier()
 xgb_model_s2.load_model('./stage_2_v1.json')
 
 #%%
+# stage 1 use label
 tmp_test = pd.read_csv('./prediction/stage_1_label.csv')
 test[target] = tmp_test[target]
 
-#%%
+# stage 1 use model
 # test[target] = xgb_model_s1.predict(test[predictors])
 
 #%%
