@@ -158,7 +158,6 @@ def grid_search(original_params, data_X, data_y, param_test, folds):
     print('best score: ', gsearch.best_score_)
     return gsearch.best_params_
 
-
 # %%
 # initial model performance
 iter_num = 0
@@ -182,7 +181,7 @@ param_test1 = {
     'max_depth':range(3, 10, 2),
     'min_child_weight':range(1, 8, 2)
 }
-to_update = grid_search(param_iterations[iter_num], X_res, y_res, 
+to_update = grid_search(param_iterations[iter_num-1], X_res, y_res, 
     param_test1, group_kfold)
 new_params = param_iterations[iter_num-1].copy()
 for key, value in to_update.items():
@@ -207,7 +206,7 @@ param_test2 = {
         prev_mcw+1.5,
     ]
 }
-to_update = grid_search(param_iterations[iter_num], X_res, y_res, 
+to_update = grid_search(param_iterations[iter_num-1], X_res, y_res, 
     param_test2, group_kfold)
 new_params = param_iterations[iter_num-1].copy()
 for key, value in to_update.items():
@@ -221,7 +220,7 @@ iter_num = 3
 param_test3 = {
     'gamma':[i/10.0 for i in range(0,5)]
 }
-to_update = grid_search(param_iterations[iter_num], X_res, y_res, 
+to_update = grid_search(param_iterations[iter_num-1], X_res, y_res, 
     param_test3, group_kfold.split(X_res, y_res, groups))
 new_params = param_iterations[iter_num-1].copy()
 for key, value in to_update.items():
@@ -236,7 +235,7 @@ param_test4 = {
     'subsample':[i/10.0 for i in range(6,10)],
     'colsample_bytree':[i/10.0 for i in range(6,10)]
 }
-to_update = grid_search(param_iterations[iter_num], X_res, y_res, 
+to_update = grid_search(param_iterations[iter_num-1], X_res, y_res, 
     param_test4, group_kfold.split(X_res, y_res, groups))
 new_params = param_iterations[iter_num-1].copy()
 for key, value in to_update.items():
@@ -253,7 +252,7 @@ param_test5 = {
     'subsample':[i/100.0 for i in range(prev_sub-10,prev_sub+15,5)],
     'colsample_bytree':[i/100.0 for i in range(prev_csb-10,prev_csb+15,5)]
 }
-to_update = grid_search(param_iterations[iter_num], X_res, y_res, 
+to_update = grid_search(param_iterations[iter_num-1], X_res, y_res, 
     param_test5, group_kfold.split(X_res, y_res, groups))
 new_params = param_iterations[iter_num-1].copy()
 for key, value in to_update.items():
@@ -267,7 +266,7 @@ iter_num = 6
 param_test6 = {
     'reg_alpha':[1e-5, 1e-2, 0.1, 1, 100]
 }
-to_update = grid_search(param_iterations[iter_num], X_res, y_res, 
+to_update = grid_search(param_iterations[iter_num-1], X_res, y_res, 
     param_test6, group_kfold.split(X_res, y_res, groups))
 new_params = param_iterations[iter_num-1].copy()
 for key, value in to_update.items():
@@ -282,7 +281,7 @@ prev_a = param_iterations[iter_num-1]['reg_alpha']
 param_test7 = {
     'reg_alpha':[prev_a/2.0, prev_a, prev_a*1.5, prev_a*2.0, prev_a*5.0, prev_a*10.0]
 }
-to_update = grid_search(param_iterations[iter_num], X_res, y_res, 
+to_update = grid_search(param_iterations[iter_num-1], X_res, y_res, 
     param_test7, group_kfold.split(X_res, y_res, groups))
 new_params = param_iterations[iter_num-1].copy()
 for key, value in to_update.items():
@@ -297,7 +296,7 @@ param_test8 = {
     'learning_rate':[0.1, 0.01, 0.001],
     'n_estimators':[100, 200, 300, 400, 500, 600, 700, 800, 900]
 }
-to_update = grid_search(param_iterations[iter_num], X_res, y_res, 
+to_update = grid_search(param_iterations[iter_num-1], X_res, y_res, 
     param_test8, group_kfold.split(X_res, y_res, groups))
 new_params = param_iterations[iter_num-1].copy()
 for key, value in to_update.items():
@@ -312,7 +311,7 @@ prev_ne = param_iterations[iter_num-1]['n_estimators']
 param_test9 = {
     'n_estimators':[i for i in range(prev_ne-80, prev_ne+90, 10)]
 }
-to_update = grid_search(param_iterations[iter_num], X_res, y_res, 
+to_update = grid_search(param_iterations[iter_num-1], X_res, y_res, 
     param_test9, group_kfold.split(X_res, y_res, groups))
 new_params = param_iterations[iter_num-1].copy()
 for key, value in to_update.items():
