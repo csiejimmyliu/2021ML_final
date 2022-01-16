@@ -63,9 +63,9 @@ predictors = [x for x in train.columns if x not in [target, IDcol]]
 #%%
 # s1 use pre-trained models
 models_s1 = []
-for i in range(1, 6):
+for i in range(11):
     xgb_s1 = XGBClassifier()
-    xgb_s1.load_model('./stage_1_voting_' + str(i) + '.json')
+    xgb_s1.load_model('./stage_1_en/stage_1_model_' + str(i) + '.json')
     models_s1.append(xgb_s1)
 
 #%%
@@ -148,9 +148,9 @@ for i in range(1, 6):
 #%%
 # s2 use pre-trained models
 models_s2 = []
-for i in [110,326,1115,1124,1126]:
+for i in range(15):
     xgb_s2 = XGBClassifier()
-    xgb_s2.load_model('./stage_2_model_' + str(i) + '.json')
+    xgb_s2.load_model('./stage_2_bagging_models/stage_2_bagging_model_' + str(i) + '.json')
     models_s2.append(xgb_s2)
 
 #%%
