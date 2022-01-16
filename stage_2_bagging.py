@@ -22,7 +22,7 @@ from matplotlib.pyplot import rcParams
 rcParams['figure.figsize'] = 12, 4
 
 WITH_GROUPING = True
-SEED_LIST = [1126, 326, 1115, 110, 1124, 6, 7, 8, 9, 10, 11, 12, 13 ,14, 15]
+SEED_LIST = [1126, 326, 1115, 110, 1124, 6, 7]
 
 #%%
 # function definition
@@ -86,24 +86,24 @@ train_1to5[target].value_counts()
 X = train_1to5[predictors]
 y = train_1to5[target]
 
-for ITERATION in range(7, 15):
+for ITERATION in range(7):
     SEED = SEED_LIST[ITERATION]
     print("######################################")
     print("# Iteration: ", ITERATION)
     print("######################################")
 
-    # sample 1/3 of each category
-    kfold = StratifiedKFold(n_splits=3, shuffle=True, random_state=SEED)
-    train, val = next(kfold.split(X, y))
-    X_sample = X.iloc[val, :]
-    y_sample = y.iloc[val]
-    y_sample.value_counts()
+    # # sample 1/3 of each category
+    # kfold = StratifiedKFold(n_splits=3, shuffle=True, random_state=SEED)
+    # train, val = next(kfold.split(X, y))
+    # X_sample = X.iloc[val, :]
+    # y_sample = y.iloc[val]
+    # y_sample.value_counts()
 
     # random oversample and grouping
     # prevent duplicate examples from appearing in both training and validation sets
-    X_sample['Group Label'] = np.array(list(range(len(X_sample))))
+    X['Group Label'] = np.array(list(range(len(X))))
     oversample = RandomOverSampler(random_state=SEED)
-    X_res, y_res = oversample.fit_resample(X_sample, y_sample)
+    X_res, y_res = oversample.fit_resample(X, y)
     print(y_res.value_counts())
     groups = np.array(X_res['Group Label'])
     X_res.drop('Group Label', axis=1, inplace=True)
@@ -143,8 +143,8 @@ for ITERATION in range(7, 15):
     print("grid search 1")
     iter_num = 1
     param_test1 = {
-        'max_depth':range(3, 10, 2),
-        'min_child_weight':range(1, 8, 2)
+        'max_depth':range(3, 10, 3),
+        'min_child_weight':range(1, 8, 3)
     }
 
     scores[iter_num], to_update = grid_search(param_iterations[iter_num-1], X_res, y_res, 
@@ -169,7 +169,6 @@ for ITERATION in range(7, 15):
             prev_mcw, 
             prev_mcw+0.5, 
             prev_mcw+1,
-            prev_mcw+1.5,
         ]
     }
 
@@ -186,8 +185,7 @@ for ITERATION in range(7, 15):
     print("grid search 3")
     iter_num = 3
     param_test3 = {
-        'gamma':[i/10.0 for i in range(0,5)],
-        'reg_alpha':[0]
+        'gamma':[i/10.0 for i in range(0,4)],
     }
     scores[iter_num], to_update = grid_search(param_iterations[iter_num-1], X_res, y_res, 
         param_test3, group_kfold, groups)
@@ -202,8 +200,8 @@ for ITERATION in range(7, 15):
     print("grid search 4")
     iter_num = 4
     param_test4 = {
-        'subsample':[i/10.0 for i in range(6,10)],
-        'colsample_bytree':[i/10.0 for i in range(6,10)]
+        'subsample':[i/10.0 for i in range(6,11,2)],
+        'colsample_bytree':[i/10.0 for i in range(6,11,2)]
     }
     scores[iter_num], to_update = grid_search(param_iterations[iter_num-1], X_res, y_res, 
         param_test4, group_kfold, groups)
@@ -271,5 +269,5 @@ for ITERATION in range(7, 15):
     stage_2_model.fit(X_res, y_res, eval_metric='merror')
 
     # save_model
-    stage_2_model.save_model(f'./stage_2_bagging_models/stage_2_bagging_model_{ITERATION}.json')
+    stage_2_model.save_model(f'./stage_2_final_ensemble/stage_2_bagging_model_{ITERATION}.json')
 
