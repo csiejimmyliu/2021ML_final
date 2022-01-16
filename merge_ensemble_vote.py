@@ -148,7 +148,7 @@ for i in range(15):
 #%%
 # s2 use pre-trained models
 models_s2 = []
-for i in range(9):
+for i in range(7):
     xgb_s2 = XGBClassifier()
     xgb_s2.load_model('./stage_2_final_ensemble/stage_2_bagging_model_' + str(i) + '.json')
     models_s2.append(xgb_s2)
@@ -402,8 +402,8 @@ for k in range(len(models_s2)):
     test_2['s2_m' + str(k + 1)]= models_s2[k].predict(test_2[predictors])
 
 #%%
-def s2_vote(m1, m2, m3, m4, m5, m6, m7, m8, m9):
-    voting = [m1, m2, m3, m4, m5, m6, m7, m8, m9]
+def s2_vote(m1, m2, m3, m4, m5, m6, m7):
+    voting = [m1, m2, m3, m4, m5, m6, m7]
     return max(set(voting), key=voting.count) + 1
 
 test_2['s2_result'] = test_2.apply(lambda x: s2_vote(
@@ -413,9 +413,7 @@ test_2['s2_result'] = test_2.apply(lambda x: s2_vote(
     x['s2_m4'], 
     x['s2_m5'],
     x['s2_m6'],
-    x['s2_m7'], 
-    x['s2_m8'], 
-    x['s2_m9']
+    x['s2_m7']
 ), axis=1)
 
 #%%
