@@ -23,7 +23,7 @@ rcParams['figure.figsize'] = 12, 4
 
 APPLY_NORMALIZATION = True
 WITH_GROUPING = True
-SEED = 1124
+SEED = 1115
 
 #%%
 # import data
@@ -69,7 +69,7 @@ if WITH_GROUPING:
 
 #%%
 # xgboost hyperparameters
-TUNING_STAGES = 9
+TUNING_STAGES = 7
 initial_params = {
     'num_class': 5,
     'learning_rate': 0.1,
@@ -277,7 +277,8 @@ param_iterations[iter_num] = new_params.copy()
 # grid search 6
 iter_num = 6
 param_test6 = {
-    'reg_alpha':[0, 1e-5, 1e-2, 0.1, 1, 100]
+    'learning_rate':[0.1, 0.01, 0.001],
+    'n_estimators':[200, 400, 600, 800, 1000]
 }
 while True:
     scores[iter_num], to_update = grid_search(param_iterations[iter_num-1], X_res, y_res, 
@@ -297,57 +298,13 @@ param_iterations[iter_num] = new_params.copy()
 # %%
 # grid search 7
 iter_num = 7
-prev_a = param_iterations[iter_num-1]['reg_alpha']
+prev_ne = param_iterations[iter_num-1]['n_estimators']
 param_test7 = {
-    'reg_alpha':[prev_a/2.0, prev_a, prev_a*1.5, prev_a*2.0, prev_a*5.0, prev_a*10.0]
+    'n_estimators':[i for i in range(prev_ne-180, prev_ne+190, 20)]
 }
 while True:
     scores[iter_num], to_update = grid_search(param_iterations[iter_num-1], X_res, y_res, 
         param_test7, group_kfold)
-    print('best score is ', scores[iter_num])
-    if scores[iter_num] < scores[iter_num - 1]:
-        print('score dropped')
-        continue
-    print('score better')
-    break
-new_params = param_iterations[iter_num-1].copy()
-for key, value in to_update.items():
-    new_params[key] = value
-print('best params: ', to_update, '\n' ,new_params)
-param_iterations[iter_num] = new_params.copy()
-
-# %%
-# grid search 8
-iter_num = 8
-param_test8 = {
-    'learning_rate':[0.1, 0.01, 0.001],
-    'n_estimators':[100, 200, 300, 400, 500, 600, 700, 800, 900]
-}
-while True:
-    scores[iter_num], to_update = grid_search(param_iterations[iter_num-1], X_res, y_res, 
-        param_test8, group_kfold)
-    print('best score is ', scores[iter_num])
-    if scores[iter_num] < scores[iter_num - 1]:
-        print('score dropped')
-        continue
-    print('score better')
-    break
-new_params = param_iterations[iter_num-1].copy()
-for key, value in to_update.items():
-    new_params[key] = value
-print('best params: ', to_update, '\n' ,new_params)
-param_iterations[iter_num] = new_params.copy()
-
-# %%
-# grid search 9
-iter_num = 9
-prev_ne = param_iterations[iter_num-1]['n_estimators']
-param_test9 = {
-    'n_estimators':[i for i in range(prev_ne-80, prev_ne+90, 10)]
-}
-while True:
-    scores[iter_num], to_update = grid_search(param_iterations[iter_num-1], X_res, y_res, 
-        param_test9, group_kfold)
     print('best score is ', scores[iter_num])
     if scores[iter_num] < scores[iter_num - 1]:
         print('score dropped')

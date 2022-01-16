@@ -26,28 +26,7 @@ SEED_LIST = [1126, 326, 1115, 110, 1124, 6, 7, 8, 9, 10, 11, 12, 13 ,14, 15]
 
 #%%
 # function definition
-def cv_model(params, data_X, data_y, folds):
-    alg = XGBClassifier(
-        num_class=params['num_class'],
-        learning_rate=params['learning_rate'],
-        n_estimators=params['n_estimators'],
-        max_depth=params['max_depth'],
-        min_child_weight=params['min_child_weight'],
-        gamma=params['gamma'],
-        subsample=params['subsample'],
-        colsample_bytree=params['colsample_bytree'],
-        objective=params['objective'],
-        nthread=params['nthread'],
-        seed=params['seed'],
-        verbosity=params['verbosity'],
-        use_label_encoder=params['use_label_encoder'],
-        reg_alpha = params['reg_alpha']
-    )
-    cv_results = cross_validate(alg, data_X, data_y, 
-        cv=folds.split(data_X, data_y, groups), scoring='f1_micro')
-    return cv_results['test_score']
-
-def grid_search(original_params, data_X, data_y, param_test, folds):
+def grid_search(original_params, data_X, data_y, param_test, folds, g):
     alg = XGBClassifier(
         num_class=original_params['num_class'],
         learning_rate=original_params['learning_rate'],
@@ -65,7 +44,7 @@ def grid_search(original_params, data_X, data_y, param_test, folds):
         reg_alpha=original_params['reg_alpha']
     )
     gsearch = GridSearchCV(estimator=alg, param_grid = param_test, 
-        scoring='f1_micro',n_jobs=16, cv=folds.split(data_X, data_y, groups))
+        scoring='f1_micro',n_jobs=16, cv=folds.split(data_X, data_y, g))
     gsearch.fit(data_X, data_y)
     return gsearch.best_score_, gsearch.best_params_
 
@@ -107,7 +86,7 @@ train_1to5[target].value_counts()
 X = train_1to5[predictors]
 y = train_1to5[target]
 
-for ITERATION in range(15):
+for ITERATION in range(7, 15):
     SEED = SEED_LIST[ITERATION]
     print("######################################")
     print("# Iteration: ", ITERATION)
@@ -169,7 +148,7 @@ for ITERATION in range(15):
     }
 
     scores[iter_num], to_update = grid_search(param_iterations[iter_num-1], X_res, y_res, 
-        param_test1, group_kfold)
+        param_test1, group_kfold, groups)
     # print('best score is ', scores[iter_num])
     new_params = param_iterations[iter_num-1].copy()
     for key, value in to_update.items():
@@ -185,7 +164,6 @@ for ITERATION in range(15):
     param_test2 = {
         'max_depth': [prev_md-1, prev_md, prev_md+1],
         'min_child_weight': [
-            prev_mcw-1.5, 
             prev_mcw-1, 
             prev_mcw-0.5, 
             prev_mcw, 
@@ -196,7 +174,7 @@ for ITERATION in range(15):
     }
 
     scores[iter_num], to_update = grid_search(param_iterations[iter_num-1], X_res, y_res, 
-        param_test2, group_kfold)
+        param_test2, group_kfold, groups)
     # print('best score is ', scores[iter_num])
     new_params = param_iterations[iter_num-1].copy()
     for key, value in to_update.items():
@@ -212,7 +190,7 @@ for ITERATION in range(15):
         'reg_alpha':[0]
     }
     scores[iter_num], to_update = grid_search(param_iterations[iter_num-1], X_res, y_res, 
-        param_test3, group_kfold)
+        param_test3, group_kfold, groups)
     # print('best score is ', scores[iter_num])
     new_params = param_iterations[iter_num-1].copy()
     for key, value in to_update.items():
@@ -228,7 +206,7 @@ for ITERATION in range(15):
         'colsample_bytree':[i/10.0 for i in range(6,10)]
     }
     scores[iter_num], to_update = grid_search(param_iterations[iter_num-1], X_res, y_res, 
-        param_test4, group_kfold)
+        param_test4, group_kfold, groups)
     # print('best score is ', scores[iter_num])
     new_params = param_iterations[iter_num-1].copy()
     for key, value in to_update.items():
@@ -246,7 +224,7 @@ for ITERATION in range(15):
         'colsample_bytree':[i/100.0 for i in range(prev_csb-10,prev_csb+15,5)]
     }
     scores[iter_num], to_update = grid_search(param_iterations[iter_num-1], X_res, y_res, 
-        param_test5, group_kfold)
+        param_test5, group_kfold, groups)
     # print('best score is ', scores[iter_num])
     new_params = param_iterations[iter_num-1].copy()
     for key, value in to_update.items():
@@ -262,7 +240,7 @@ for ITERATION in range(15):
         'n_estimators':[200, 400, 600]
     }
     scores[iter_num], to_update = grid_search(param_iterations[iter_num-1], X_res, y_res, 
-        param_test6, group_kfold)
+        param_test6, group_kfold, groups)
     # print('best score is ', scores[iter_num])
     new_params = param_iterations[iter_num-1].copy()
     for key, value in to_update.items():
@@ -280,7 +258,7 @@ for ITERATION in range(15):
         'n_estimators':[i for i in range(prev_ne-100, prev_ne+110, 50)]
     }
     scores[iter_num], to_update = grid_search(param_iterations[iter_num-1], X_res, y_res, 
-        param_test7, group_kfold)
+        param_test7, group_kfold, groups)
     # print('best score is ', scores[iter_num])
     new_params = param_iterations[iter_num-1].copy()
     for key, value in to_update.items():
@@ -291,15 +269,6 @@ for ITERATION in range(15):
     # model fit
     stage_2_model = get_model(param_iterations[TUNING_STAGES])
     stage_2_model.fit(X_res, y_res, eval_metric='merror')
-    feat_imp = pd.Series(stage_2_model.get_booster().get_fscore()).sort_values(ascending=False)
-    feat_imp.plot(kind='bar', title='Feature Importances')
-    plt.ylabel('Feature Importance Score')
-
-    predictions = stage_2_model.predict(X_res[predictors])
-    acc_score = metrics.accuracy_score(y_res.values, predictions)
-    f1_score = metrics.f1_score(y_res.values, predictions, average='macro')
-    # print( "accuracy : %.4g" % acc_score)
-    # print( "f1 score : %.4g" % f1_score)
 
     # save_model
     stage_2_model.save_model(f'./stage_2_bagging_models/stage_2_bagging_model_{ITERATION}.json')
