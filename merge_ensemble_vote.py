@@ -24,7 +24,7 @@ rcParams['figure.figsize'] = 12, 4
 
 WITH_GROUPING = True
 SEED = 1126
-VERSION = 9
+VERSION = 11
 
 #%%
 #########################
@@ -63,9 +63,9 @@ predictors = [x for x in train.columns if x not in [target, IDcol]]
 #%%
 # s1 use pre-trained models
 models_s1 = []
-for i in range(11):
+for i in range(15):
     xgb_s1 = XGBClassifier()
-    xgb_s1.load_model('./stage_1_en/stage_1_model_' + str(i) + '.json')
+    xgb_s1.load_model('./stage_1_en_new/stage_1_model_' + str(i) + '.json')
     models_s1.append(xgb_s1)
 
 #%%
@@ -148,9 +148,9 @@ for i in range(11):
 #%%
 # s2 use pre-trained models
 models_s2 = []
-for i in range(15):
+for i in range(9):
     xgb_s2 = XGBClassifier()
-    xgb_s2.load_model('./stage_2_bagging_models/stage_2_bagging_model_' + str(i) + '.json')
+    xgb_s2.load_model('./stage_2_final_ensemble/stage_2_bagging_model_' + str(i) + '.json')
     models_s2.append(xgb_s2)
 
 #%%
@@ -364,8 +364,8 @@ for j in range(len(models_s1)):
     test['s1_m' + str(j + 1)] = models_s1[j].predict(test[predictors])
 
 #%%
-def s1_vote(m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11):
-    voting = [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11]
+def s1_vote(m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14, m15):
+    voting = [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14, m15]
     return max(set(voting), key=voting.count)
 
 test['s1_result'] = test.apply(lambda x: s1_vote(
@@ -379,7 +379,11 @@ test['s1_result'] = test.apply(lambda x: s1_vote(
     x['s1_m8'], 
     x['s1_m9'], 
     x['s1_m10'],
-    x['s1_m11']
+    x['s1_m11'], 
+    x['s1_m12'], 
+    x['s1_m13'], 
+    x['s1_m14'], 
+    x['s1_m15']
 ), axis=1)
 
 #%%
@@ -398,8 +402,8 @@ for k in range(len(models_s2)):
     test_2['s2_m' + str(k + 1)]= models_s2[k].predict(test_2[predictors])
 
 #%%
-def s2_vote(m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14, m15):
-    voting = [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14, m15]
+def s2_vote(m1, m2, m3, m4, m5, m6, m7, m8, m9):
+    voting = [m1, m2, m3, m4, m5, m6, m7, m8, m9]
     return max(set(voting), key=voting.count) + 1
 
 test_2['s2_result'] = test_2.apply(lambda x: s2_vote(
@@ -411,13 +415,7 @@ test_2['s2_result'] = test_2.apply(lambda x: s2_vote(
     x['s2_m6'],
     x['s2_m7'], 
     x['s2_m8'], 
-    x['s2_m9'], 
-    x['s2_m10'],
-    x['s2_m11'],
-    x['s2_m12'], 
-    x['s2_m13'], 
-    x['s2_m14'], 
-    x['s2_m15']
+    x['s2_m9']
 ), axis=1)
 
 #%%
