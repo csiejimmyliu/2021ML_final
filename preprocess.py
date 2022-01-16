@@ -688,33 +688,43 @@ predictors = [x for x in train_reco.columns if x not in [label_col, id_col]]
 #%%
 # fill real-valued nan by train data
 for col in real_cols_fill_avg_int:
-    train_reco[col].fillna(round(train_reco[col].mean()), inplace=True)
-    test_reco[col].fillna(round(train_reco[col].mean()), inplace=True)
+    mean_value = round(train_reco[col].mean())
+    train_reco[col].fillna(mean_value, inplace=True)
+    test_reco[col].fillna(mean_value, inplace=True)
 
 for col in real_cols_fill_avg_float:
-    train_reco[col].fillna(train_reco[col].mean(), inplace=True)
-    test_reco[col].fillna(train_reco[col].mean(), inplace=True)
+    mean_value = train_reco[col].mean()
+    train_reco[col].fillna(mean_value, inplace=True)
+    test_reco[col].fillna(mean_value, inplace=True)
 
 for col in real_cols_fill_zero:
     train_reco[col].fillna(0, inplace=True)
     test_reco[col].fillna(0, inplace=True)
 
 for col in real_cols_fill_mode:
-    train_reco[col].fillna(train_reco[col].mode()[0], inplace=True)
-    test_reco[col].fillna(train_reco[col].mode()[0], inplace=True)
+    mode_value = train_reco[col].mode()[0]
+    train_reco[col].fillna(mode_value, inplace=True)
+    test_reco[col].fillna(mode_value, inplace=True)
 
 for col in other_cols_fill_mode:
-    train_reco[col].fillna(train_reco[col].mode()[0], inplace=True)
-    test_reco[col].fillna(train_reco[col].mode()[0], inplace=True)
+    mode_value = train_reco[col].mode()[0]
+    train_reco[col].fillna(mode_value, inplace=True)
+    test_reco[col].fillna(mode_value, inplace=True)
 
 #%%
 # fill categorical-valued nan by train data
-# TBD (mode?)
+for col in cat_cols:
+    mode_value = train_reco[col].mode()[0]
+    train_reco[col].fillna(mode_value, inplace=True)
+    test_reco[col].fillna(mode_value, inplace=True)
+
+#%%
+list_nan(train_reco)
 
 #%%
 # one hot
-train_filled = pd.get_dummies(data=train_reco, columns=cat_cols, dummy_na=True)
-test_filled = pd.get_dummies(data=test_reco, columns=cat_cols, dummy_na=True)
+train_filled = pd.get_dummies(data=train_reco, columns=cat_cols, dummy_na=False)
+test_filled = pd.get_dummies(data=test_reco, columns=cat_cols, dummy_na=False)
 
 #%%
 list_nan(train_filled)
