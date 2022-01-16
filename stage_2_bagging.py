@@ -86,7 +86,7 @@ train_1to5[target].value_counts()
 X = train_1to5[predictors]
 y = train_1to5[target]
 
-for ITERATION in range(7):
+for ITERATION in range(5,7):
     SEED = SEED_LIST[ITERATION]
     print("######################################")
     print("# Iteration: ", ITERATION)
