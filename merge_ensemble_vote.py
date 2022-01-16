@@ -364,8 +364,8 @@ for j in range(len(models_s1)):
     test['s1_m' + str(j + 1)] = models_s1[j].predict(test[predictors])
 
 #%%
-def s1_vote(m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14, m15):
-    voting = [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14, m15]
+def s1_vote(m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11):
+    voting = [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11]
     return max(set(voting), key=voting.count)
 
 test['s1_result'] = test.apply(lambda x: s1_vote(
@@ -379,11 +379,7 @@ test['s1_result'] = test.apply(lambda x: s1_vote(
     x['s1_m8'], 
     x['s1_m9'], 
     x['s1_m10'],
-    x['s1_m11'], 
-    x['s1_m12'], 
-    x['s1_m13'], 
-    x['s1_m14'], 
-    x['s1_m15'],
+    x['s1_m11']
 ), axis=1)
 
 #%%
@@ -421,7 +417,7 @@ test_2['s2_result'] = test_2.apply(lambda x: s2_vote(
     x['s2_m12'], 
     x['s2_m13'], 
     x['s2_m14'], 
-    x['s2_m15'],
+    x['s2_m15']
 ), axis=1)
 
 #%%
@@ -437,7 +433,7 @@ test_result
 for i in range(len(test_result)):
     if test_result['s1_result'].iloc[i] == 0:
         test_result['Churn Category'].iloc[i] = test_result['s1_result'].iloc[i]
-    else if test_result['s1_result'].iloc[i] == 1:
+    elif test_result['s1_result'].iloc[i] == 1:
         test_result['Churn Category'].iloc[i] = test_result['s2_result'].iloc[i]
 
 #%%
