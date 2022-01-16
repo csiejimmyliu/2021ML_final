@@ -402,22 +402,6 @@ graph_imp(param_iterations[iter_num], X_res, y_res)
 
 params = {}
 
-params[1126] = {
-    'num_class': 5, 
-    'learning_rate': 0.1, 
-    'n_estimators': 20, 
-    'max_depth': 9, 
-    'min_child_weight': 5, 
-    'gamma': 0.3, 
-    'subsample': 0.9, 
-    'colsample_bytree': 0.85, 
-    'objective': 'multi:softprob', 
-    'nthread': 4, 
-    'seed': 1126, 
-    'verbosity': 0, 
-    'use_label_encoder': False, 
-    'reg_alpha': 0.0
-}
 
 params[326] = {
     'num_class': 5, 
