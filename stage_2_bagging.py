@@ -200,8 +200,8 @@ for ITERATION in range(7):
     print("grid search 4")
     iter_num = 4
     param_test4 = {
-        'subsample':[i/10.0 for i in range(6,11,2)],
-        'colsample_bytree':[i/10.0 for i in range(6,11,2)]
+        'subsample':[i/10.0 for i in range(6,10,2)],
+        'colsample_bytree':[i/10.0 for i in range(6,10,2)]
     }
     scores[iter_num], to_update = grid_search(param_iterations[iter_num-1], X_res, y_res, 
         param_test4, group_kfold, groups)
