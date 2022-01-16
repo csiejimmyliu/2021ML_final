@@ -22,7 +22,7 @@ from matplotlib.pyplot import rcParams
 rcParams['figure.figsize'] = 12, 4
 
 WITH_GROUPING = True
-SEED_LIST = [1126, 326, 1115, 110, 1124, 6, 7]
+SEED_LIST = [1126, 326, 1115, 110, 1124, 6, 7, 8, 9]
 
 #%%
 # function definition
