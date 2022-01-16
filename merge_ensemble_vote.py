@@ -24,7 +24,7 @@ rcParams['figure.figsize'] = 12, 4
 
 WITH_GROUPING = True
 SEED = 1126
-VERSION = 8
+VERSION = 9
 
 #%%
 #########################
@@ -33,14 +33,14 @@ VERSION = 8
 
 #%%
 # import data
-train = pd.read_csv('./preprocessed_data/train_data_old_std_normalized.csv')
+train = pd.read_csv('./preprocessed_data/train_data_std_normalized.csv')
 train = train.loc[train['Churn Category'] != -1]
-test = pd.read_csv('./preprocessed_data/test_data_old_std_normalized.csv')
+test = pd.read_csv('./preprocessed_data/test_data_std_normalized.csv')
 
 target = 'Churn Category'
 IDcol = 'Customer ID'
 predictors = [x for x in train.columns if x not in [target, IDcol]]
-NUM_CLASS = len(train[target].unique())
+# NUM_CLASS = len(train[target].unique())
 
 #%%
 # data augmentation
@@ -361,20 +361,37 @@ for i in [110,326,1115,1124,1126]:
 
 #%%
 for j in range(len(models_s1)):
-    test['s1_m' + str(j + 1)]= models_s1[j].predict(test[predictors])
+    test['s1_m' + str(j + 1)] = models_s1[j].predict(test[predictors])
 
 #%%
-def s1_vote(m1, m2, m3, m4, m5):
-    voting = [m1,m2,m3,m4,m5]
+def s1_vote(m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14, m15):
+    voting = [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14, m15]
     return max(set(voting), key=voting.count)
 
-test['s1_result'] = test.apply(lambda x: s1_vote(x['s1_m1'], x['s1_m2'], x['s1_m3'], x['s1_m4'], x['s1_m5']), axis=1)
+test['s1_result'] = test.apply(lambda x: s1_vote(
+    x['s1_m1'], 
+    x['s1_m2'], 
+    x['s1_m3'], 
+    x['s1_m4'], 
+    x['s1_m5'],
+    x['s1_m6'], 
+    x['s1_m7'], 
+    x['s1_m8'], 
+    x['s1_m9'], 
+    x['s1_m10'],
+    x['s1_m11'], 
+    x['s1_m12'], 
+    x['s1_m13'], 
+    x['s1_m14'], 
+    x['s1_m15'],
+), axis=1)
 
 #%%
-test = pd.read_csv('./preprocessed_data/test_data_old_std_normalized.csv')
-test_s1 = pd.read_csv('./prediction/stage_1_label.csv')
-test['s1_result'] = test_s1['Churn Category']
-test
+# old s1
+# test = pd.read_csv('./preprocessed_data/test_data_old_std_normalized.csv')
+# test_s1 = pd.read_csv('./prediction/stage_1_label.csv')
+# test['s1_result'] = test_s1['Churn Category']
+# test
 
 #%%
 test_2 = test.loc[test['s1_result'] == 1]
@@ -385,15 +402,31 @@ for k in range(len(models_s2)):
     test_2['s2_m' + str(k + 1)]= models_s2[k].predict(test_2[predictors])
 
 #%%
-def s2_vote(m1, m2, m3, m4, m5):
-    voting = [m1,m2,m3,m4,m5]
+def s2_vote(m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14, m15):
+    voting = [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14, m15]
     return max(set(voting), key=voting.count) + 1
 
-test_2['s2_result'] = test_2.apply(lambda x: s2_vote(x['s2_m1'], x['s2_m2'], x['s2_m3'], x['s2_m4'], x['s2_m5']), axis=1)
+test_2['s2_result'] = test_2.apply(lambda x: s2_vote(
+    x['s2_m1'],
+    x['s2_m2'], 
+    x['s2_m3'], 
+    x['s2_m4'], 
+    x['s2_m5'],
+    x['s2_m6'],
+    x['s2_m7'], 
+    x['s2_m8'], 
+    x['s2_m9'], 
+    x['s2_m10'],
+    x['s2_m11'],
+    x['s2_m12'], 
+    x['s2_m13'], 
+    x['s2_m14'], 
+    x['s2_m15'],
+), axis=1)
 
 #%%
 test_result = pd.merge(
-    left=test[[IDcol,'s1_result']],
+    left=test[[IDcol,target,'s1_result']],
     right=test_2[[IDcol,'s2_result']],
     how='left',
     on=IDcol
@@ -401,16 +434,15 @@ test_result = pd.merge(
 test_result
 
 #%%
-test_result['Churn Category'] = 0
 for i in range(len(test_result)):
-    if test_result['s1_result'].iloc[i] == 1:
-        test_result['Churn Category'].iloc[i] = test_result['s2_result'].iloc[i]
-    else:
+    if test_result['s1_result'].iloc[i] == 0:
         test_result['Churn Category'].iloc[i] = test_result['s1_result'].iloc[i]
+    else if test_result['s1_result'].iloc[i] == 1:
+        test_result['Churn Category'].iloc[i] = test_result['s2_result'].iloc[i]
 
 #%%
 test_result[target].value_counts()
 
 #%%
 test_result['Churn Category'] = test_result['Churn Category'].astype(int)
-test_result[[IDcol, target]].to_csv('./prediction/version' + str(2) + '.csv', index=False)
+test_result[[IDcol, target]].to_csv('./prediction/version' + str(VERSION) + '.csv', index=False)
