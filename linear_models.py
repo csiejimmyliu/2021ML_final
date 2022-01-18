@@ -320,7 +320,7 @@ svm2 = SVC(C=gsearch2_2.best_params_['C'], gamma=gsearch2_2.best_params_['gamma'
 # %%
 # stage 1 train and predict
 svm_stage1 = svm1.fit(X1, y1)
-y_test = svm_stage1.predict(test_data[PREDICTORS])
+y1_test = svm_stage1.predict(test_data[PREDICTORS])
 
 
 #%%
@@ -332,7 +332,7 @@ test_stage2 = test_result1.loc[test_result1[TARGET] == 1]
 # %%
 # stage 2 train and predict
 svm_stage2 = svm2.fit(X2, y2)
-y_test = svm_stage2.predict(test_data[PREDICTORS])
+y2_test = svm_stage2.predict(test_stage2[PREDICTORS])
 test_result2 = test_stage2.copy()
 test_result2[TARGET] = y2_test + 1
 
