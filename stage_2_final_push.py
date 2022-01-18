@@ -22,7 +22,7 @@ from matplotlib.pyplot import rcParams
 rcParams['figure.figsize'] = 12, 4
 
 WITH_GROUPING = True
-SEED_LIST = list(range(0, 63, 3))
+SEED_LIST = list(range(0, 87, 3))
 
 #%%
 # import data
@@ -41,8 +41,8 @@ for i in range(1,6):
 train_1to5[target].value_counts()
 X = train_1to5[predictors]
 y = train_1to5[target]
-
-for ITERATION in range(21):
+start_t = time.time()
+for ITERATION in range(29):
     SEED = SEED_LIST[ITERATION]
     print("######################################")
     print("# Iteration: ", ITERATION)
@@ -76,4 +76,9 @@ for ITERATION in range(21):
     alg.fit(X_res, y_res, eval_metric='merror')
 
     # save_model
-    alg.save_model(f'./stage_2_final_final_ensemble/stage_2_final_model_{ITERATION}.json')
+    # alg.save_model(f'./stage_2_testing_ensemble/stage_2_final_model_{ITERATION}.json')
+end_t = time.time()
+
+#%%
+t = end_t - start_t
+print(t)

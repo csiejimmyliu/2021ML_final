@@ -14,9 +14,9 @@ import joblib
 
 #%%
 # import data
-train = pd.read_csv('./preprocessed_data/train_data_normalized.csv')
+train = pd.read_csv('./preprocessed_data/train_data_std_normalized.csv')
 train = train.loc[train['Churn Category'] != -1]
-test_data = pd.read_csv('./preprocessed_data/test_data_normalized.csv')
+test_data = pd.read_csv('./preprocessed_data/test_data_std_normalized.csv')
 
 TARGET = 'Churn Category'
 IDCOL = 'Customer ID'
@@ -89,19 +89,20 @@ rmc1= RandomForestClassifier(
 
 #%%
 # stage 2 oversampling
-train_stage2 = train.loc[train[TARGET]!=0]
+train_stage2 = train.loc[train[TARGET]!=0].copy()
 for i in range(1,6):
-    train_stage2.loc[train_stage2[TARGET]==i] = i-1
+   train_stage2[TARGET].replace(i, i-1, inplace=True)
 
 train_stage2['Group Label'] = np.array(list(range(len(train_stage2))))
 oversample = RandomOverSampler()
-X = train_stage2[PREDICTORS+['Group Label']]
-y = train_stage2[TARGET]
-X2, y2 = oversample.fit_resample(X, y)
+# XX = train_stage2[PREDICTORS+['Group Label']]
+XX = train_stage2[PREDICTORS]
+yy = train_stage2[TARGET]
+X2, y2 = oversample.fit_resample(XX, yy)
 print(y2.value_counts())
 
-groups2 = np.array(X2['Group Label'])
-X2.drop('Group Label', axis=1, inplace=True)
+# groups2 = np.array(X2['Group Label'])
+# X2.drop('Group Label', axis=1, inplace=True)
 
 #%%
 # stage 2 tuning 1
@@ -151,6 +152,9 @@ rmc1f= RandomForestClassifier(
     bootstrap=False,
     max_depth=80
 )
+rmc1f= RandomForestClassifier(
+    n_estimators=200,
+)
 
 #%% 
 # stage 1 training
@@ -167,10 +171,16 @@ rmc2f= RandomForestClassifier(
     bootstrap=False
 )
 
+rmc2f= RandomForestClassifier(
+    n_estimators=300,
+)
+
 #%%
 # stage 2 training
 rmc2f = rmc2f.fit(X2,y2)
-
+test=rmc2f.predict(X2)
+for i in test :
+    print(i)
 #%%
 # stage 1 predict and get 2 test data
 y1_test = rmc1f.predict(test_data[PREDICTORS])
@@ -178,11 +188,18 @@ test_result1 = test_data.copy()
 test_result1[TARGET] = y1_test
 test_stage2 = test_result1.loc[test_result1[TARGET] == 1]
 
+#%%
+test_stage2[PREDICTORS]
+
 # %%
 # stage 2 predict
 y2_test = rmc2f.predict(test_stage2[PREDICTORS])
 test_result2 = test_stage2.copy()
 test_result2[TARGET] = y2_test + 1
+
+#%%
+# correctness check
+np.unique(y2_test)
 
 #%%
 # merge

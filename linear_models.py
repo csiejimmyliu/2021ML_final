@@ -178,7 +178,6 @@ print(
 temp_train=train.copy()
 
 train_0=temp_train.loc[temp_train['Churn Category'] == 0]
-train_0=train_0.sample(n=2500,replace=False)
 
 num_list=[]
 for i in range(6):
@@ -193,7 +192,7 @@ for i in range(1,6):
 train_stage1['Group Label'] = np.array(list(range(len(train_stage1))))
 
 for i in range(1,6):
-    train=train.append(temp_train.loc[temp_train['Churn Category'] == i].sample(n=int(N-num_list[i]),replace=True))
+    train_stage1=train_stage1.append(temp_train.loc[temp_train['Churn Category'] == i].sample(n=int(N-num_list[i]),replace=True))
 
 groups1 = np.array(train_stage1['Group Label'])
 train_stage1.drop('Group Label', axis=1, inplace=True)
@@ -209,9 +208,9 @@ for i in range(1,6):
 
 train_stage2['Group Label'] = np.array(list(range(len(train_stage2))))
 oversample = RandomOverSampler()
-X = train_stage2[PREDICTORS+['Group Label']]
-y = train_stage2[TARGET]
-X2, y2 = oversample.fit_resample(X, y)
+X2 = train_stage2[PREDICTORS+['Group Label']]
+y2 = train_stage2[TARGET]
+X2, y2 = oversample.fit_resample(X2, y2)
 print(y2.value_counts())
 
 groups2 = np.array(X2['Group Label'])
@@ -230,8 +229,14 @@ test_result1 = test_data.copy()
 test_result1[TARGET] = y1_test
 test_stage2 = test_result1.loc[test_result1[TARGET] == 1]
 
+
 # %%
+#=====================================================================================#
+#=====================================================================================#
+#=====================================================================================#
+#=====================================================================================#
 # stage 2 train and predict
+
 lr2 = LogisticRegression(C=1.0, multi_class='multinomial', max_iter=10000)
 lr_stage2 = lr2.fit(X2, y2)
 y2_test = lr_stage2.predict(test_stage2[PREDICTORS])

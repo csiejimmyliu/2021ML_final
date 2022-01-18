@@ -8,6 +8,7 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import cross_validate
 from sklearn import metrics   #Additional scklearn functions
 from sklearn.model_selection import StratifiedGroupKFold, StratifiedKFold
+from sklearn import metrics
 
 from imblearn.over_sampling import RandomOverSampler
 
@@ -22,7 +23,7 @@ from matplotlib.pyplot import rcParams
 rcParams['figure.figsize'] = 12, 4
 
 WITH_GROUPING = True
-SEED_LIST = [1126, 326, 1115, 110, 1124, 6, 7, 8, 9]
+SEED_LIST = [1126, 326, 1115, 110, 1124]
 
 #%%
 # function definition
@@ -86,7 +87,7 @@ train_1to5[target].value_counts()
 X = train_1to5[predictors]
 y = train_1to5[target]
 
-for ITERATION in range(5,7):
+for ITERATION in range(5):
     SEED = SEED_LIST[ITERATION]
     print("######################################")
     print("# Iteration: ", ITERATION)
@@ -269,5 +270,41 @@ for ITERATION in range(5,7):
     stage_2_model.fit(X_res, y_res, eval_metric='merror')
 
     # save_model
-    stage_2_model.save_model(f'./stage_2_final_ensemble/stage_2_bagging_model_{ITERATION}.json')
+    stage_2_model.save_model(f'./stage_2_testing_ensemble/stage_2_bagging_model_{ITERATION}.json')
 
+#%%
+models_s2 = []
+for i in range(5):
+    xgb_s2 = XGBClassifier()
+    xgb_s2.load_model('./stage_2_testing_ensemble/stage_2_bagging_model_' + str(i) + '.json')
+    models_s2.append(xgb_s2)
+
+#%%
+models_s2[2].get_params()
+
+# %%
+y_in = models_s2[4].predict(X_res)
+print(metrics.accuracy_score(y_res, y_in))
+
+# %%
+X_prediction = X_res.copy()
+for k in range(len(models_s2)):
+    X_prediction['s2_m' + str(k + 1)]= models_s2[k].predict(X_prediction[predictors])
+# %%
+X_prediction
+# %%
+def s2_vote(m1, m2, m3, m4, m5):
+    voting = [m1, m2, m3, m4, m5]
+    return max(set(voting), key=voting.count)
+
+X_prediction['s2_result'] = X_prediction.apply(lambda x: s2_vote(
+    x['s2_m1'],
+    x['s2_m2'], 
+    x['s2_m3'], 
+    x['s2_m4'], 
+    x['s2_m5']
+), axis=1)
+# %%
+y_in = X_prediction['s2_result']
+print(metrics.accuracy_score(y_res, y_in))
+# %%
